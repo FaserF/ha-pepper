@@ -1,10 +1,13 @@
 {
   "domain": "pepper",
   "name": "Pepper",
-  "documentation": "https://github.com/fseitz/ha-pepper",
+  "codeowners": [
+    "@FaserF"
+  ],
   "dependencies": [],
-  "codeowners": ["@fseitz"],
+  "documentation": "https://github.com/FaserF/ha-pepper",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/FaserF/ha-pepper/issues",
   "requirements": [],
-  "version": "1.0.0",
-  "iot_class": "cloud_polling"
+  "version": "0.0.1"
 }
