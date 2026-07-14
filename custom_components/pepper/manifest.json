@@ -4,6 +4,7 @@
   "codeowners": [
     "@FaserF"
   ],
+  "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/FaserF/ha-pepper",
   "iot_class": "cloud_polling",
