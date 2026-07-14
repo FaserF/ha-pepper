@@ -1,0 +1,10 @@
+{
+  "domain": "pepper",
+  "name": "Pepper",
+  "documentation": "https://github.com/fseitz/ha-pepper",
+  "dependencies": [],
+  "codeowners": ["@fseitz"],
+  "requirements": [],
+  "version": "1.0.0",
+  "iot_class": "cloud_polling"
+}

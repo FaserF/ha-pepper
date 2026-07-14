@@ -1,0 +1,36 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Pepper Deal-Plattform konfigurieren",
+        "description": "Wähle deine bevorzugte Pepper-Plattform und konfiguriere die Sortierung sowie das Abfrageintervall.",
+        "data": {
+          "platform": "Pepper Portal",
+          "sort_mode": "Deal-Sortierung",
+          "scan_interval": "Abfrage-Intervall (Minuten)",
+          "keywords": "Schlagwörter für Alarme (kommagetrennt)",
+          "temp_threshold": "Temperatur-Grenzwert für Alarme",
+          "limit": "Maximal abzurufende Deals"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zur ausgewählten Pepper-Plattform fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Pepper Optionen",
+        "description": "Passe die Einstellungen für diese Pepper-Instanz an.",
+        "data": {
+          "sort_mode": "Deal-Sortierung",
+          "scan_interval": "Abfrage-Intervall (Minuten)",
+          "keywords": "Schlagwörter für Alarme (kommagetrennt)",
+          "temp_threshold": "Temperatur-Grenzwert für Alarme",
+          "limit": "Maximal abzurufende Deals"
+        }
+      }
+    }
+  }
+}

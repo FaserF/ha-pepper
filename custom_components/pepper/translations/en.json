@@ -1,0 +1,36 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure Pepper Deal Platform",
+        "description": "Select your preferred Pepper platform and configure sorting and sync settings.",
+        "data": {
+          "platform": "Pepper Platform Site",
+          "sort_mode": "Deals Sort Mode",
+          "scan_interval": "Update Interval (minutes)",
+          "keywords": "Tracked Keywords (comma-separated)",
+          "temp_threshold": "Temperature Threshold for Alerts",
+          "limit": "Max Deals to Fetch"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the selected Pepper platform. Check your internet connection or try again."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Pepper Options",
+        "description": "Adjust the configuration for your Pepper integration instance.",
+        "data": {
+          "sort_mode": "Deals Sort Mode",
+          "scan_interval": "Update Interval (minutes)",
+          "keywords": "Tracked Keywords (comma-separated)",
+          "temp_threshold": "Temperature Threshold for Alerts",
+          "limit": "Max Deals to Fetch"
+        }
+      }
+    }
+  }
+}

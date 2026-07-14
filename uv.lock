@@ -1,0 +1,8 @@
+version = 1
+revision = 3
+requires-python = ">=3.14.0"
+
+[[package]]
+name = "ha-mydealz"
+version = "1.0.0.dev0"
+source = { virtual = "." }
