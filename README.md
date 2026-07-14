@@ -72,6 +72,10 @@ A powerful, robust Home Assistant integration for **Pepper Deal Platforms** (MyD
 
 ### HACS (Recommended)
 
+This integration is fully compatible with [HACS](https://hacs.xyz/).
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=FaserF&repository=ha-pepper&category=integration)
+
 1. Open HACS in Home Assistant.
 2. Click **Integrations** and select the three dots in the top-right corner.
 3. Select **Custom repositories**.
