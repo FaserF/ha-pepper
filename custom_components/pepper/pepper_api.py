@@ -1,4 +1,5 @@
 """API Client for Pepper undocumented GraphQL API."""
+
 import http.cookiejar
 import json
 import logging
@@ -18,6 +19,7 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
 ]
 
+
 def get_random_headers() -> dict[str, str]:
     """Generate random browser-like headers to mimic a real user session."""
     ua = random.choice(USER_AGENTS)
@@ -36,11 +38,14 @@ def get_random_headers() -> dict[str, str]:
     }
 
     if "Chrome" in ua:
-        headers["Sec-CH-UA"] = '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"'
+        headers["Sec-CH-UA"] = (
+            '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"'
+        )
         headers["Sec-CH-UA-Mobile"] = "?0"
         headers["Sec-CH-UA-Platform"] = '"Windows"' if "Windows" in ua else '"macOS"'
 
     return headers
+
 
 class PepperAPI:
     """Client for Pepper GraphQL API."""
@@ -61,24 +66,27 @@ class PepperAPI:
 
     def fetch_session(self) -> None:
         """Fetch the home page to get session cookies and XSRF token."""
-        _LOGGER.debug("Fetching Pepper home page to establish session: %s", self.base_url)
+        _LOGGER.debug(
+            "Fetching Pepper home page to establish session: %s", self.base_url
+        )
         # Rotate headers
         self._headers = get_random_headers()
-        req = urllib.request.Request(
-            self.base_url,
-            headers=self._headers
-        )
+        req = urllib.request.Request(self.base_url, headers=self._headers)
         try:
             with self._opener.open(req, timeout=10) as response:
                 response.read()
         except Exception as err:
-            _LOGGER.error("Failed to connect to Pepper platform %s: %s", self.platform, err)
-            raise ConnectionError(f"Could not connect to Pepper platform: {err}") from err
+            _LOGGER.error(
+                "Failed to connect to Pepper platform %s: %s", self.platform, err
+            )
+            raise ConnectionError(
+                f"Could not connect to Pepper platform: {err}"
+            ) from err
 
         # Extract xsrf_t cookie
         for cookie in self._cookie_jar:
             if cookie.name == "xsrf_t":
-                self.xsrf_token = cookie.value.replace('"', '')
+                self.xsrf_token = cookie.value.replace('"', "")
                 break
 
         if not self.xsrf_token:
@@ -89,24 +97,23 @@ class PepperAPI:
         if not self.xsrf_token:
             self.fetch_session()
 
-        payload = {
-            "query": query_str,
-            "variables": variables
-        }
+        payload = {"query": query_str, "variables": variables}
 
         # Adapt browser headers for CORS GraphQL POST request
         headers = self._headers.copy()
-        headers.update({
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "X-Xsrf-Token": self.xsrf_token or "",
-            "X-Requested-With": "XMLHttpRequest",
-            "Origin": self.base_url,
-            "Referer": f"{self.base_url}/",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-origin"
-        })
+        headers.update(
+            {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "X-Xsrf-Token": self.xsrf_token or "",
+                "X-Requested-With": "XMLHttpRequest",
+                "Origin": self.base_url,
+                "Referer": f"{self.base_url}/",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-origin",
+            }
+        )
         # Remove navigation headers
         headers.pop("Upgrade-Insecure-Requests", None)
         headers.pop("Sec-Fetch-User", None)
@@ -115,7 +122,7 @@ class PepperAPI:
             self.graphql_url,
             data=json.dumps(payload).encode("utf-8"),
             headers=headers,
-            method="POST"
+            method="POST",
         )
 
         try:
@@ -124,7 +131,9 @@ class PepperAPI:
         except urllib.error.HTTPError as err:
             # Handle Teapot or expired session
             if err.code == 418:
-                _LOGGER.info("Session expired or teapot block (418), re-fetching session")
+                _LOGGER.info(
+                    "Session expired or teapot block (418), re-fetching session"
+                )
                 self.fetch_session()
                 # Retry once
                 return self._query(query_str, variables)
@@ -167,11 +176,7 @@ class PepperAPI:
         }
         """
 
-        variables = {
-            "filter": {
-                "sort": { "eq": sort_mode }
-            }
-        }
+        variables = {"filter": {"sort": {"eq": sort_mode}}}
 
         data = self._query(query, variables)
         threads = data.get("threads", [])
@@ -184,7 +189,9 @@ class PepperAPI:
             if main_img and main_img.get("path") and main_img.get("name"):
                 path = main_img["path"]
                 name = main_img["name"]
-                image_url = f"{self.image_host}/{path}/{name}/re/300x300/qt/60/{name}.jpg"
+                image_url = (
+                    f"{self.image_host}/{path}/{name}/re/300x300/qt/60/{name}.jpg"
+                )
 
             merchant_name = None
             merchant = t.get("merchant")

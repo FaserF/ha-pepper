@@ -1,4 +1,5 @@
 """Binary sensor platform for Pepper integration."""
+
 from typing import Any
 
 from homeassistant.components.binary_sensor import (
@@ -22,9 +23,7 @@ async def async_setup_entry(
     """Set up the Pepper binary sensor platform."""
     coordinator: PepperDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    entities = [
-        PepperHighTempAlertSensor(coordinator, entry)
-    ]
+    entities = [PepperHighTempAlertSensor(coordinator, entry)]
 
     async_add_entities(entities, True)
 
@@ -51,7 +50,8 @@ class PepperHighTempAlertSensor(PepperEntity, BinarySensorEntity):
     def _get_threshold(self) -> int:
         """Get configured temperature threshold."""
         return self._entry.options.get(
-            CONF_TEMP_THRESHOLD, self._entry.data.get(CONF_TEMP_THRESHOLD, DEFAULT_TEMP_THRESHOLD)
+            CONF_TEMP_THRESHOLD,
+            self._entry.data.get(CONF_TEMP_THRESHOLD, DEFAULT_TEMP_THRESHOLD),
         )
 
     def _get_alert_deals(self) -> list[dict[str, Any]]:
@@ -62,7 +62,11 @@ class PepperHighTempAlertSensor(PepperEntity, BinarySensorEntity):
         for deal in deals:
             temp = deal.get("temperature")
             # Filter valid numbers that exceed or equal the threshold
-            if temp is not None and isinstance(temp, (int, float)) and temp >= threshold:
+            if (
+                temp is not None
+                and isinstance(temp, (int, float))
+                and temp >= threshold
+            ):
                 alerts.append(deal)
         return alerts
 

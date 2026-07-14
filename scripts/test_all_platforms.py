@@ -1,18 +1,19 @@
 # ruff: noqa: E402
 """Script to live test all Pepper platforms and API features."""
+
 import sys
 from unittest.mock import MagicMock
 
 # Mock homeassistant modules to prevent import errors during collection
-sys.modules['homeassistant'] = MagicMock()
-sys.modules['homeassistant.const'] = MagicMock()
-sys.modules['homeassistant.core'] = MagicMock()
-sys.modules['homeassistant.config_entries'] = MagicMock()
-sys.modules['homeassistant.helpers'] = MagicMock()
-sys.modules['homeassistant.helpers.update_coordinator'] = MagicMock()
-sys.modules['homeassistant.helpers.entity_platform'] = MagicMock()
-sys.modules['homeassistant.components'] = MagicMock()
-sys.modules['homeassistant.components.sensor'] = MagicMock()
+sys.modules["homeassistant"] = MagicMock()
+sys.modules["homeassistant.const"] = MagicMock()
+sys.modules["homeassistant.core"] = MagicMock()
+sys.modules["homeassistant.config_entries"] = MagicMock()
+sys.modules["homeassistant.helpers"] = MagicMock()
+sys.modules["homeassistant.helpers.update_coordinator"] = MagicMock()
+sys.modules["homeassistant.helpers.entity_platform"] = MagicMock()
+sys.modules["homeassistant.components"] = MagicMock()
+sys.modules["homeassistant.components.sensor"] = MagicMock()
 
 import os
 
@@ -42,14 +43,17 @@ def test_platform(domain, name):
             print(f"   Success! Fetched {len(deals)} deals.")
             if deals:
                 deal = deals[0]
-                print(f"   Sample Deal: {deal['title']} | Temp: {deal['temperature']}° | Price: {deal['price']}")
-                if deal['image_url']:
+                print(
+                    f"   Sample Deal: {deal['title']} | Temp: {deal['temperature']}° | Price: {deal['price']}"
+                )
+                if deal["image_url"]:
                     print(f"   Image CDN URL: {deal['image_url']}")
         except Exception as e:
             print(f"   Failed to fetch {sort} deals: {e}")
             return False
 
     return True
+
 
 if __name__ == "__main__":
     print("Starting Pepper Platform Live Tests...")

@@ -12,6 +12,7 @@ from .pepper_api import PepperAPI
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class PepperDataUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
     """Class to manage fetching Pepper data."""
 

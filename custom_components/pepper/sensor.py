@@ -1,4 +1,5 @@
 """Sensor platform for Pepper integration."""
+
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
