@@ -1,7 +1,7 @@
 [project]
-name = "ha-mydealz"
+name = "ha-pepper"
 version = "1.0.0-dev0"
-description = "Home Assistant integration for MyDealz."
+description = "Home Assistant integration for Pepper."
 authors = [
     {name = "FaserF", email = "github@fabiseitz.de"}
 ]

@@ -1,7 +1,7 @@
-site_name: MyDealz for Home Assistant
-site_url: https://faserf.github.io/ha-mydealz/
-repo_url: https://github.com/FaserF/ha-mydealz
-repo_name: FaserF/ha-mydealz
+site_name: Pepper for Home Assistant
+site_url: https://faserf.github.io/ha-pepper/
+repo_url: https://github.com/FaserF/ha-pepper
+repo_name: FaserF/ha-pepper
 edit_uri: edit/main/docs/
 
 theme:
@@ -45,13 +45,13 @@ theme:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/FaserF/ha-mydealz
+      link: https://github.com/FaserF/ha-pepper
       name: GitHub Repository
     - icon: fontawesome/solid/heart
       link: https://github.com/sponsors/FaserF
       name: Sponsor me on GitHub
     - icon: fontawesome/solid/bug
-      link: https://github.com/FaserF/ha-mydealz/issues
+      link: https://github.com/FaserF/ha-pepper/issues
       name: Report an Issue
   generator: false
 
@@ -87,5 +87,5 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Configuration: configuration.md
-  - API Reference: mydealz_api.md
+  - API Reference: pepper_api.md
   - "❤️ Support": support.md
