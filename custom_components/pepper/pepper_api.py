@@ -85,7 +85,7 @@ class PepperAPI:
 
         # Extract xsrf_t cookie
         for cookie in self._cookie_jar:
-            if cookie.name == "xsrf_t":
+            if cookie.name == "xsrf_t" and cookie.value is not None:
                 self.xsrf_token = cookie.value.replace('"', "")
                 break
 
