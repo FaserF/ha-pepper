@@ -26,6 +26,9 @@ async def async_setup_entry(
     entities: list[BinarySensorEntity] = [
         PepperHighTempAlertSensor(coordinator, entry),
         PepperExpiredKeywordDealSensor(coordinator, entry),
+        PepperFreebieAvailableSensor(coordinator, entry),
+        PepperVoucherAvailableSensor(coordinator, entry),
+        PepperNewDealAvailableSensor(coordinator, entry),
     ]
 
     async_add_entities(entities, True)
@@ -151,3 +154,80 @@ class PepperExpiredKeywordDealSensor(PepperEntity, BinarySensorEntity):
             "expired_keyword_deals_count": len(expired),
             "deals": expired,
         }
+
+
+class PepperFreebieAvailableSensor(PepperEntity, BinarySensorEntity):
+    """Binary sensor that turns ON if any freebies are currently available."""
+
+    _attr_icon = "mdi:gift"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_freebie_available"
+        self._attr_name = "Freebie Available"
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if freebies exist."""
+        if not self.coordinator.data:
+            return False
+        return len(self.coordinator.data.get("freebies", [])) > 0
+
+
+class PepperVoucherAvailableSensor(PepperEntity, BinarySensorEntity):
+    """Binary sensor that turns ON if any vouchers are currently available."""
+
+    _attr_icon = "mdi:ticket-percent"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_voucher_available"
+        self._attr_name = "Voucher Available"
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if vouchers exist."""
+        if not self.coordinator.data:
+            return False
+        return len(self.coordinator.data.get("vouchers", [])) > 0
+
+
+class PepperNewDealAvailableSensor(PepperEntity, BinarySensorEntity):
+    """Binary sensor that turns ON if any deals were published in the last 60 minutes."""
+
+    _attr_icon = "mdi:new-box"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_new_deal_available"
+        self._attr_name = "New Deal Available"
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if new deals exist."""
+        if not self.coordinator.data:
+            return False
+        deals = self.coordinator.data.get("deals", [])
+        from datetime import UTC, datetime
+
+        now_ts = datetime.now(tz=UTC).timestamp()
+        cutoff = now_ts - 3600
+        return any(d.get("published_at") and d["published_at"] >= cutoff for d in deals)

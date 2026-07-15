@@ -231,6 +231,7 @@ class PepperAPI:
         sort_mode: str = "hot",
         is_freebies: bool = False,
         is_voucher: bool = False,
+        limit: int = 30,
     ) -> list[dict[str, Any]]:
         """Fetch deals.
 
@@ -248,7 +249,7 @@ class PepperAPI:
         if is_voucher:
             filter_vars["isVoucher"] = True
 
-        variables = {"filter": filter_vars}
+        variables = {"filter": filter_vars, "first": limit}
 
         # Shared thread fields sub-selection
         thread_fields = """
@@ -288,8 +289,8 @@ class PepperAPI:
 
         if sort_mode == "hot":
             query = f"""
-            query HottestWidget($filter: ThreadFilter!) {{
-              hottestWidget(filter: $filter) {{
+            query HottestWidget($filter: ThreadFilter!, $first: Int) {{
+              hottestWidget(filter: $filter, first: $first) {{
                 threads {{
                   {thread_fields}
                 }}
@@ -300,8 +301,8 @@ class PepperAPI:
             threads = data.get("hottestWidget", {}).get("threads", []) or []
         else:
             query = f"""
-            query getThreads($filter: ThreadFilter!) {{
-              threads(filter: $filter) {{
+            query getThreads($filter: ThreadFilter!, $first: Int) {{
+              threads(filter: $filter, first: $first) {{
                 {thread_fields}
               }}
             }}

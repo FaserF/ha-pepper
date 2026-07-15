@@ -22,10 +22,12 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         api: PepperAPI,
         sort_mode: str,
         update_interval_min: int,
+        limit: int,
     ) -> None:
         """Initialize the coordinator."""
         self.api = api
         self.sort_mode = sort_mode
+        self.limit = limit
 
         super().__init__(
             hass,
@@ -43,11 +45,15 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         def _fetch_all_data() -> dict[str, Any]:
             # Fetch normal deals
-            deals = self.api.get_deals(self.sort_mode)
+            deals = self.api.get_deals(self.sort_mode, limit=self.limit)
             # Fetch freebies
-            freebies = self.api.get_deals(self.sort_mode, is_freebies=True)
+            freebies = self.api.get_deals(
+                self.sort_mode, is_freebies=True, limit=self.limit
+            )
             # Fetch vouchers
-            vouchers = self.api.get_deals(self.sort_mode, is_voucher=True)
+            vouchers = self.api.get_deals(
+                self.sort_mode, is_voucher=True, limit=self.limit
+            )
             # Fetch user profile if logged in
             profile = None
             if self.api.username:

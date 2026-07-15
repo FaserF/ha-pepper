@@ -11,10 +11,12 @@ from homeassistant.core import (
 )
 
 from .const import (
+    CONF_LIMIT,
     CONF_PASSWORD,
     CONF_PLATFORM,
     CONF_SORT_MODE,
     CONF_USERNAME,
+    DEFAULT_LIMIT,
     DEFAULT_PLATFORM,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SORT_MODE,
@@ -45,11 +47,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         password=password,
     )
 
+    limit = entry.options.get(CONF_LIMIT, entry.data.get(CONF_LIMIT, DEFAULT_LIMIT))
+
     coordinator = PepperDataUpdateCoordinator(
         hass,
         api=api,
         sort_mode=sort_mode,
         update_interval_min=scan_interval,
+        limit=limit,
     )
 
     # Initial data refresh
@@ -76,6 +81,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             }
         ),
         supports_response=SupportsResponse.ONLY,
+    )
+
+    # Register the refresh service/action
+    async def async_refresh_service(call: ServiceCall) -> None:
+        """Refresh data coordinator."""
+        await coordinator.async_request_refresh()
+
+    hass.services.async_register(
+        DOMAIN,
+        "refresh",
+        async_refresh_service,
     )
 
     # Register listener for options updates

@@ -1,6 +1,7 @@
 """Sensor platform for Pepper integration."""
 
 import logging
+import statistics
 from datetime import UTC, datetime
 from typing import Any
 
@@ -27,6 +28,8 @@ async def async_setup_entry(
     entities: list[SensorEntity] = [
         PepperTopDealsSensor(coordinator, entry),
         PepperFreebiesSensor(coordinator, entry),
+        PepperFeedDealCountSensor(coordinator, entry),
+        PepperFreshestDealSensor(coordinator, entry),
         # Disabled by default
         PepperKeywordAlertsSensor(coordinator, entry),
         PepperVouchersSensor(coordinator, entry),
@@ -34,6 +37,16 @@ async def async_setup_entry(
         PepperExpiredDealsCountSensor(coordinator, entry),
         PepperPickedDealsCountSensor(coordinator, entry),
         PepperTopMerchantSensor(coordinator, entry),
+        PepperAverageTemperatureSensor(coordinator, entry),
+        PepperCheapestDealSensor(coordinator, entry),
+        PepperHottestDealTempSensor(coordinator, entry),
+        PepperDealTypeDistributionSensor(coordinator, entry),
+        PepperDealsWithVoucherCountSensor(coordinator, entry),
+        PepperFreebieCountSensor(coordinator, entry),
+        PepperMostCommentedDealSensor(coordinator, entry),
+        PepperMostSharedDealSensor(coordinator, entry),
+        PepperBestPriceSavingSensor(coordinator, entry),
+        PepperBestPriceSavingPercentSensor(coordinator, entry),
     ]
 
     if coordinator.api.username:
@@ -41,6 +54,8 @@ async def async_setup_entry(
             [
                 PepperUserThreadCountSensor(coordinator, entry),
                 PepperUserCommentCountSensor(coordinator, entry),
+                PepperUserAccountAgeDaysSensor(coordinator, entry),
+                PepperUserBadgeCountSensor(coordinator, entry),
             ]
         )
 
@@ -448,3 +463,540 @@ class PepperUserCommentCountSensor(PepperEntity, SensorEntity):
             "username": (profile or {}).get("username"),
             "user_id": (profile or {}).get("userId"),
         }
+
+
+class PepperFeedDealCountSensor(PepperEntity, SensorEntity):
+    """Sensor showing the total number of deals in the current main feed."""
+
+    _attr_icon = "mdi:numeric"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_feed_deal_count"
+        self._attr_name = "Feed Deal Count"
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of deals in the feed."""
+        if not self.coordinator.data:
+            return 0
+        return len(self.coordinator.data.get("deals", []))
+
+
+class PepperFreshestDealSensor(PepperEntity, SensorEntity):
+    """Sensor showing the title of the newest/freshest deal in the feed."""
+
+    _attr_icon = "mdi:clock-outline"
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_freshest_deal"
+        self._attr_name = "Freshest Deal"
+
+    def _get_freshest_deal(self) -> dict[str, Any] | None:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        if not deals:
+            return None
+        return max(deals, key=lambda d: d.get("published_at") or 0)
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the title of the freshest deal."""
+        deal = self._get_freshest_deal()
+        return deal.get("title") if deal else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return details of the freshest deal."""
+        deal = self._get_freshest_deal()
+        return {"deal": deal} if deal else {}
+
+
+class PepperAverageTemperatureSensor(PepperEntity, SensorEntity):
+    """Sensor showing the average temperature of the deals in the feed."""
+
+    _attr_icon = "mdi:thermometer"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_average_temp"
+        self._attr_name = "Average Temperature"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the average temperature."""
+        if not self.coordinator.data:
+            return None
+        deals = self.coordinator.data.get("deals", [])
+        temps = [
+            d["temperature"]
+            for d in deals
+            if d.get("temperature") is not None
+            and isinstance(d["temperature"], (int, float))
+        ]
+        return round(statistics.mean(temps), 1) if temps else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return statistics on deal temperature."""
+        if not self.coordinator.data:
+            return {}
+        deals = self.coordinator.data.get("deals", [])
+        temps = [
+            d["temperature"]
+            for d in deals
+            if d.get("temperature") is not None
+            and isinstance(d["temperature"], (int, float))
+        ]
+        if not temps:
+            return {}
+        return {
+            "min_temp": min(temps),
+            "max_temp": max(temps),
+            "median_temp": round(statistics.median(temps), 1),
+            "std_dev": round(statistics.stdev(temps), 2) if len(temps) > 1 else 0.0,
+        }
+
+
+class PepperCheapestDealSensor(PepperEntity, SensorEntity):
+    """Sensor showing the cheapest deal price in the feed."""
+
+    _attr_icon = "mdi:cash-minus"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_cheapest_deal"
+        self._attr_name = "Cheapest Deal"
+
+    def _get_cheapest_deal(self) -> dict[str, Any] | None:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        priced_deals = [
+            d
+            for d in deals
+            if d.get("price") is not None and isinstance(d["price"], (int, float))
+        ]
+        if not priced_deals:
+            return None
+        return min(priced_deals, key=lambda d: d["price"])
+
+    @property
+    def native_value(self) -> float | None:
+        """Return price of the cheapest deal."""
+        deal = self._get_cheapest_deal()
+        return deal.get("price") if deal else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return cheapest deal object."""
+        deal = self._get_cheapest_deal()
+        return {"deal": deal} if deal else {}
+
+
+class PepperHottestDealTempSensor(PepperEntity, SensorEntity):
+    """Sensor showing the temperature of the hottest deal in the feed."""
+
+    _attr_icon = "mdi:fire-circle"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_hottest_temp"
+        self._attr_name = "Hottest Deal Temperature"
+
+    def _get_hottest_deal(self) -> dict[str, Any] | None:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        temps = [
+            d
+            for d in deals
+            if d.get("temperature") is not None
+            and isinstance(d["temperature"], (int, float))
+        ]
+        if not temps:
+            return None
+        return max(temps, key=lambda d: d["temperature"])
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the temperature value."""
+        deal = self._get_hottest_deal()
+        return deal.get("temperature") if deal else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return hottest deal details."""
+        deal = self._get_hottest_deal()
+        return {"deal": deal} if deal else {}
+
+
+class PepperDealTypeDistributionSensor(PepperEntity, SensorEntity):
+    """Sensor that counts deals by their type."""
+
+    _attr_icon = "mdi:chart-pie"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_type_distribution"
+        self._attr_name = "Deal Type Distribution"
+
+    def _get_distribution(self) -> dict[str, int]:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        dist: dict[str, int] = {}
+        for d in deals:
+            t = d.get("type") or "Unknown"
+            dist[t] = dist.get(t, 0) + 1
+        return dist
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the most frequent deal type."""
+        dist = self._get_distribution()
+        if not dist:
+            return None
+        return max(dist, key=lambda k: dist[k])
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return full type counts."""
+        return {"distribution": self._get_distribution()}
+
+
+class PepperDealsWithVoucherCountSensor(PepperEntity, SensorEntity):
+    """Sensor that counts deals that have a voucher code in the main feed."""
+
+    _attr_icon = "mdi:ticket-outline"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_deals_with_voucher_count"
+        self._attr_name = "Deals with Voucher Count"
+
+    def _get_deals_with_voucher(self) -> list[dict[str, Any]]:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        return [d for d in deals if d.get("voucher_code")]
+
+    @property
+    def native_value(self) -> int:
+        """Return counts."""
+        return len(self._get_deals_with_voucher())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the list of deals."""
+        return {"deals": self._get_deals_with_voucher()}
+
+
+class PepperFreebieCountSensor(PepperEntity, SensorEntity):
+    """Sensor showing integer count of freebies available."""
+
+    _attr_icon = "mdi:gift-outline"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_freebie_count"
+        self._attr_name = "Freebie Count"
+
+    @property
+    def native_value(self) -> int:
+        """Return count."""
+        if not self.coordinator.data:
+            return 0
+        return len(self.coordinator.data.get("freebies", []))
+
+
+class PepperMostCommentedDealSensor(PepperEntity, SensorEntity):
+    """Sensor showing the deal with the most comments."""
+
+    _attr_icon = "mdi:message-reply-text"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_most_commented_deal"
+        self._attr_name = "Most Commented Deal"
+
+    def _get_most_commented(self) -> dict[str, Any] | None:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        if not deals:
+            return None
+        return max(deals, key=lambda d: d.get("comment_count") or 0)
+
+    @property
+    def native_value(self) -> str | None:
+        """Return title."""
+        deal = self._get_most_commented()
+        return deal.get("title") if deal else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return deal attributes."""
+        deal = self._get_most_commented()
+        return {"deal": deal} if deal else {}
+
+
+class PepperMostSharedDealSensor(PepperEntity, SensorEntity):
+    """Sensor showing the deal with the most shares."""
+
+    _attr_icon = "mdi:share-variant"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_most_shared_deal"
+        self._attr_name = "Most Shared Deal"
+
+    def _get_most_shared(self) -> dict[str, Any] | None:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        if not deals:
+            return None
+        return max(deals, key=lambda d: d.get("share_count") or 0)
+
+    @property
+    def native_value(self) -> str | None:
+        """Return title."""
+        deal = self._get_most_shared()
+        return deal.get("title") if deal else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return deal attributes."""
+        deal = self._get_most_shared()
+        return {"deal": deal} if deal else {}
+
+
+class PepperBestPriceSavingSensor(PepperEntity, SensorEntity):
+    """Sensor showing the highest absolute price saving (next_best_price - price)."""
+
+    _attr_icon = "mdi:tag-minus"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_best_saving"
+        self._attr_name = "Best Saving (Absolute)"
+
+    def _get_savings(self) -> list[tuple[float, dict[str, Any]]]:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        savings = []
+        for d in deals:
+            p = d.get("price")
+            nbp = d.get("next_best_price")
+            if (
+                p is not None
+                and nbp is not None
+                and isinstance(p, (int, float))
+                and isinstance(nbp, (int, float))
+            ):
+                diff = nbp - p
+                if diff > 0:
+                    savings.append((round(diff, 2), d))
+        return savings
+
+    @property
+    def native_value(self) -> float | None:
+        """Return saving amount."""
+        savings = self._get_savings()
+        if not savings:
+            return None
+        return max(savings, key=lambda s: s[0])[0]
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return deal with highest saving."""
+        savings = self._get_savings()
+        if not savings:
+            return {}
+        best = max(savings, key=lambda s: s[0])
+        return {"deal": best[1], "saving_amount": best[0]}
+
+
+class PepperBestPriceSavingPercentSensor(PepperEntity, SensorEntity):
+    """Sensor showing the highest percentage price saving."""
+
+    _attr_icon = "mdi:percent-outline"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_best_saving_percent"
+        self._attr_name = "Best Saving (Percent)"
+
+    def _get_savings_percent(self) -> list[tuple[float, dict[str, Any]]]:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        savings = []
+        for d in deals:
+            p = d.get("price")
+            nbp = d.get("next_best_price")
+            if (
+                p is not None
+                and nbp is not None
+                and isinstance(p, (int, float))
+                and isinstance(nbp, (int, float))
+                and nbp > 0
+            ):
+                pct = ((nbp - p) / nbp) * 100
+                if pct > 0:
+                    savings.append((round(pct, 1), d))
+        return savings
+
+    @property
+    def native_value(self) -> float | None:
+        """Return saving percent."""
+        savings = self._get_savings_percent()
+        if not savings:
+            return None
+        return max(savings, key=lambda s: s[0])[0]
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return deal with highest saving."""
+        savings = self._get_savings_percent()
+        if not savings:
+            return {}
+        best = max(savings, key=lambda s: s[0])
+        return {"deal": best[1], "saving_percent": best[0]}
+
+
+class PepperUserAccountAgeDaysSensor(PepperEntity, SensorEntity):
+    """Sensor showing the user's account age in days."""
+
+    _attr_icon = "mdi:calendar-account"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_user_account_age"
+        self._attr_name = "User Account Age (Days)"
+
+    @property
+    def native_value(self) -> int | None:
+        """Return count of days."""
+        if not self.coordinator.data:
+            return None
+        profile = self.coordinator.data.get("profile")
+        if profile and profile.get("createdAt"):
+            created_ts = profile["createdAt"]
+            now_ts = datetime.now(tz=UTC).timestamp()
+            diff_sec = now_ts - created_ts
+            return max(0, int(diff_sec // 86400))
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return date formatted."""
+        profile = self.coordinator.data.get("profile") if self.coordinator.data else {}
+        if profile and profile.get("createdAt"):
+            dt = datetime.fromtimestamp(profile["createdAt"], tz=UTC)
+            return {"created_at_date": dt.isoformat()}
+        return {}
+
+
+class PepperUserBadgeCountSensor(PepperEntity, SensorEntity):
+    """Sensor showing count of badges earned by the user."""
+
+    _attr_icon = "mdi:trophy-variant"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_user_badge_count"
+        self._attr_name = "User Badge Count"
+
+    @property
+    def native_value(self) -> int | None:
+        """Return counts."""
+        if not self.coordinator.data:
+            return None
+        profile = self.coordinator.data.get("profile")
+        if profile:
+            badges = profile.get("badges") or []
+            return len(badges)
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return badges list."""
+        profile = self.coordinator.data.get("profile") if self.coordinator.data else {}
+        if profile:
+            return {"badges": profile.get("badges") or []}
+        return {}

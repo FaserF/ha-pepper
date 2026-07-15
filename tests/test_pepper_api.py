@@ -19,6 +19,8 @@ sys.modules["homeassistant.components.binary_sensor"] = MagicMock()
 sys.modules["voluptuous"] = MagicMock()
 
 import json
+import statistics
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -606,10 +608,116 @@ def _high_temp_logic(coordinator_data: dict, threshold: int) -> list:
     ]
 
 
+def _freshest_deal_logic(coordinator_data: dict) -> dict | None:
+    deals = coordinator_data.get("deals", [])
+    if not deals:
+        return None
+    return max(deals, key=lambda d: d.get("published_at") or 0)
+
+
+def _average_temp_logic(coordinator_data: dict) -> float | None:
+    deals = coordinator_data.get("deals", [])
+    temps = [
+        d["temperature"]
+        for d in deals
+        if d.get("temperature") is not None
+        and isinstance(d["temperature"], (int, float))
+    ]
+    return round(statistics.mean(temps), 1) if temps else None
+
+
+def _cheapest_deal_logic(coordinator_data: dict) -> dict | None:
+    deals = coordinator_data.get("deals", [])
+    priced_deals = [
+        d
+        for d in deals
+        if d.get("price") is not None and isinstance(d["price"], (int, float))
+    ]
+    if not priced_deals:
+        return None
+    return min(priced_deals, key=lambda d: d["price"])
+
+
+def _hottest_deal_logic(coordinator_data: dict) -> dict | None:
+    deals = coordinator_data.get("deals", [])
+    temps = [
+        d
+        for d in deals
+        if d.get("temperature") is not None
+        and isinstance(d["temperature"], (int, float))
+    ]
+    if not temps:
+        return None
+    return max(temps, key=lambda d: d["temperature"])
+
+
+def _deal_distribution_logic(coordinator_data: dict) -> dict[str, int]:
+    deals = coordinator_data.get("deals", [])
+    dist: dict[str, int] = {}
+    for d in deals:
+        t = d.get("type") or "Unknown"
+        dist[t] = dist.get(t, 0) + 1
+    return dist
+
+
+def _deals_with_voucher_logic(coordinator_data: dict) -> list[dict]:
+    deals = coordinator_data.get("deals", [])
+    return [d for d in deals if d.get("voucher_code")]
+
+
+def _most_commented_logic(coordinator_data: dict) -> dict | None:
+    deals = coordinator_data.get("deals", [])
+    if not deals:
+        return None
+    return max(deals, key=lambda d: d.get("comment_count") or 0)
+
+
+def _most_shared_logic(coordinator_data: dict) -> dict | None:
+    deals = coordinator_data.get("deals", [])
+    if not deals:
+        return None
+    return max(deals, key=lambda d: d.get("share_count") or 0)
+
+
+def _savings_logic(coordinator_data: dict) -> list[tuple[float, dict]]:
+    deals = coordinator_data.get("deals", [])
+    savings = []
+    for d in deals:
+        p = d.get("price")
+        nbp = d.get("next_best_price")
+        if (
+            p is not None
+            and nbp is not None
+            and isinstance(p, (int, float))
+            and isinstance(nbp, (int, float))
+        ):
+            diff = nbp - p
+            if diff > 0:
+                savings.append((round(diff, 2), d))
+    return savings
+
+
+def _savings_percent_logic(coordinator_data: dict) -> list[tuple[float, dict]]:
+    deals = coordinator_data.get("deals", [])
+    savings = []
+    for d in deals:
+        p = d.get("price")
+        nbp = d.get("next_best_price")
+        if (
+            p is not None
+            and nbp is not None
+            and isinstance(p, (int, float))
+            and isinstance(nbp, (int, float))
+            and nbp > 0
+        ):
+            pct = ((nbp - p) / nbp) * 100
+            if pct > 0:
+                savings.append((round(pct, 1), d))
+    return savings
+
+
 def test_new_deals_count_sensor_logic() -> None:
     """Test new deals count logic counts only recent deals."""
-    from datetime import UTC, datetime
-
     now = datetime.now(tz=UTC).timestamp()
     old_ts = now - 7200  # 2 hours ago
     new_ts = now - 300  # 5 minutes ago
@@ -627,8 +735,6 @@ def test_new_deals_count_sensor_logic() -> None:
 
 def test_new_deals_count_sensor_no_deals() -> None:
     """Test new deals count returns empty list when no recent deals."""
-    from datetime import UTC, datetime
-
     now = datetime.now(tz=UTC).timestamp()
     old_ts = now - 7200
     data = {"deals": [{"id": "1", "published_at": old_ts}]}
@@ -825,3 +931,138 @@ def test_expired_keyword_deal_non_activated_status() -> None:
     }
     result = _keyword_matches_expired_logic(data, ["rtx"])
     assert len(result) == 1
+
+
+# ---------------------------------------------------------------------------
+# New Sensor and Binary Sensor logic tests
+# ---------------------------------------------------------------------------
+
+
+def test_freshest_deal_logic() -> None:
+    """Test freshest deal selection."""
+    data = {
+        "deals": [
+            {"title": "Older Deal", "published_at": 1000},
+            {"title": "Fresher Deal", "published_at": 2000},
+        ]
+    }
+    deal = _freshest_deal_logic(data)
+    assert deal is not None
+    assert deal["title"] == "Fresher Deal"
+
+
+def test_average_temp_logic() -> None:
+    """Test average temperature calculation."""
+    data = {
+        "deals": [
+            {"temperature": 100.0},
+            {"temperature": 200.0},
+            {"temperature": 300.0},
+        ]
+    }
+    avg = _average_temp_logic(data)
+    assert avg == 200.0
+
+
+def test_cheapest_deal_logic() -> None:
+    """Test cheapest deal logic."""
+    data = {
+        "deals": [
+            {"price": 10.0},
+            {"price": 5.0},
+            {"price": None},
+        ]
+    }
+    deal = _cheapest_deal_logic(data)
+    assert deal is not None
+    assert deal["price"] == 5.0
+
+
+def test_hottest_deal_logic() -> None:
+    """Test hottest deal logic."""
+    data = {
+        "deals": [
+            {"temperature": 100},
+            {"temperature": 500},
+        ]
+    }
+    deal = _hottest_deal_logic(data)
+    assert deal is not None
+    assert deal["temperature"] == 500
+
+
+def test_deal_distribution_logic() -> None:
+    """Test deal distribution."""
+    data = {
+        "deals": [
+            {"type": "Deal"},
+            {"type": "Deal"},
+            {"type": "Freebie"},
+        ]
+    }
+    dist = _deal_distribution_logic(data)
+    assert dist == {"Deal": 2, "Freebie": 1}
+
+
+def test_deals_with_voucher_logic() -> None:
+    """Test deals with voucher."""
+    data = {
+        "deals": [
+            {"voucher_code": "VOUCH"},
+            {"voucher_code": None},
+        ]
+    }
+    result = _deals_with_voucher_logic(data)
+    assert len(result) == 1
+    assert result[0]["voucher_code"] == "VOUCH"
+
+
+def test_most_commented_logic() -> None:
+    """Test most commented."""
+    data = {
+        "deals": [
+            {"comment_count": 5},
+            {"comment_count": 10},
+        ]
+    }
+    deal = _most_commented_logic(data)
+    assert deal is not None
+    assert deal["comment_count"] == 10
+
+
+def test_most_shared_logic() -> None:
+    """Test most shared."""
+    data = {
+        "deals": [
+            {"share_count": 2},
+            {"share_count": 8},
+        ]
+    }
+    deal = _most_shared_logic(data)
+    assert deal is not None
+    assert deal["share_count"] == 8
+
+
+def test_savings_logic() -> None:
+    """Test saving amounts."""
+    data = {
+        "deals": [
+            {"price": 10.0, "next_best_price": 15.0},
+            {"price": 20.0, "next_best_price": 18.0},
+        ]
+    }
+    savings = _savings_logic(data)
+    assert len(savings) == 1
+    assert savings[0][0] == 5.0
+
+
+def test_savings_percent_logic() -> None:
+    """Test saving percent calculation."""
+    data = {
+        "deals": [
+            {"price": 10.0, "next_best_price": 20.0},
+        ]
+    }
+    pct = _savings_percent_logic(data)
+    assert len(pct) == 1
+    assert pct[0][0] == 50.0

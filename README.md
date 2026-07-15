@@ -53,6 +53,8 @@ A powerful, robust Home Assistant integration for **Pepper Deal Platforms** (MyD
 | :--- | :--- | :--- |
 | 🔥 **Top Deals** | `sensor.pepper_top_deals` | State = title of the #1 deal. Attributes = full list of deals with all fields. |
 | 🎁 **Freebies** | `sensor.pepper_freebies` | State = title of the top freebie. Attributes = list of free items. |
+| 📈 **Feed Deal Count** | `sensor.pepper_feed_deal_count` | Total deals currently in the retrieved feed. |
+| 🕒 **Freshest Deal** | `sensor.pepper_freshest_deal` | State = title of the most recently published deal. |
 
 ### Disabled by Default (enable as needed)
 
@@ -64,6 +66,16 @@ A powerful, robust Home Assistant integration for **Pepper Deal Platforms** (MyD
 | ⌛ **Expired Deals** | `sensor.pepper_expired_deals` | Count of expired deals currently in the feed. |
 | ⭐ **Picked Deals** | `sensor.pepper_picked_deals` | Count of deals that have been featured/picked by editors (`pickedAt > 0`). |
 | 🏪 **Top Merchant** | `sensor.pepper_top_merchant` | Merchant name with the most deals in the current feed. Attributes = full ranking. |
+| 🌡️ **Average Temperature** | `sensor.pepper_average_temperature` | Average temperature of the retrieved deals. Attrs: min, max, median, std dev. |
+| 🪙 **Cheapest Deal** | `sensor.pepper_cheapest_deal` | Price of the cheapest priced deal. |
+| 🌶️ **Hottest Deal Temp** | `sensor.pepper_hottest_deal_temperature` | Temperature of the single hottest deal. |
+| 📊 **Deal Distribution** | `sensor.pepper_deal_type_distribution` | Most common deal type (Deal/Voucher/Freebie/Discussion). Attrs: type counts. |
+| 🎫 **Deals with Voucher** | `sensor.pepper_deals_with_voucher_count` | Count of deals in the main feed having a voucher code. |
+| 🎁 **Freebie Count** | `sensor.pepper_freebie_count` | Integer count of freebies. |
+| 💬 **Most Commented Deal** | `sensor.pepper_most_commented_deal` | Title of the deal with the most comments. |
+| 🔗 **Most Shared Deal** | `sensor.pepper_most_shared_deal` | Title of the deal with the most shares. |
+| 💸 **Best Saving (Absolute)** | `sensor.pepper_best_saving_absolute` | Highest absolute saving (next_best_price - price). |
+| 🏷️ **Best Saving (Percent)** | `sensor.pepper_best_saving_percent` | Highest percentage saving. |
 
 ### User Sensors *(requires login, disabled by default)*
 
@@ -71,6 +83,8 @@ A powerful, robust Home Assistant integration for **Pepper Deal Platforms** (MyD
 | :--- | :--- | :--- |
 | 📝 **User Thread Count** | `sensor.pepper_user_thread_count` | Total number of deal threads the logged-in user has posted. |
 | 💬 **User Comment Count** | `sensor.pepper_user_comment_count` | Total number of comments the logged-in user has posted. |
+| 📅 **User Account Age (Days)** | `sensor.pepper_user_account_age_days` | Number of days since the user's account was created. |
+| 🏆 **User Badge Count** | `sensor.pepper_user_badge_count` | Number of badges earned by the user. |
 
 ---
 
@@ -82,6 +96,9 @@ All binary sensors are **disabled by default**.
 | :--- | :--- | :--- |
 | 🔥 **High Temperature Alert** | `binary_sensor.pepper_high_temperature_alert` | Any deal in the feed exceeds the configured temperature threshold. |
 | 🔕 **Expired Keyword Deal** | `binary_sensor.pepper_expired_keyword_deal` | Any of your keyword-tracked deals has expired (`is_expired=true` or status ≠ Activated). |
+| 🎁 **Freebie Available** | `binary_sensor.pepper_freebie_available` | Any freebies are currently in the feed. |
+| 🎫 **Voucher Available** | `binary_sensor.pepper_voucher_available` | Any vouchers are currently in the feed. |
+| 🆕 **New Deal Available** | `binary_sensor.pepper_new_deal_available` | Any deals were published in the last 60 minutes. |
 
 ---
 
@@ -121,7 +138,7 @@ Every deal object in sensor attributes includes the following fields:
 
 ## 🛠️ Services (Actions)
 
-The integration registers a service/action to programmatically search for deals:
+The integration registers actions to programmatically interact:
 
 ### `pepper.search`
 Search for deals on the selected platform. This returns the list of matching deals.
@@ -131,6 +148,9 @@ Search for deals on the selected platform. This returns the list of matching dea
 
 **Response Data:**
 - `deals`: A list of matching deals, each containing `title` and `url`.
+
+### `pepper.refresh`
+Force the integration to immediately pull the latest data from the platform.
 
 ---
 
@@ -206,7 +226,7 @@ content: >
   {% endif %}
 ```
 
-### 2. Automation: Alert on expired keyword deal
+### 2. Automation: Alert when tracked deal expires
 
 ```yaml
 alias: "Alert when tracked deal expires"
