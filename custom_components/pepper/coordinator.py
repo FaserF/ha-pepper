@@ -44,20 +44,33 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await asyncio.sleep(jitter)
 
         def _fetch_all_data() -> dict[str, Any]:
-            # Fetch normal deals
-            deals = self.api.get_deals(self.sort_mode, limit=self.limit)
-            # Fetch freebies (force higher limit of 100 to ensure client-side filter finds freebies)
-            freebies = self.api.get_deals(
-                self.sort_mode, is_freebies=True, limit=max(100, self.limit)
-            )
-            # Fetch vouchers
-            vouchers = self.api.get_deals(
-                self.sort_mode, is_voucher=True, limit=self.limit
-            )
-            # Fetch user profile if logged in
+            # Fetch a single large batch of deals to cover all types and extract freebies/vouchers
+            batch_limit = max(100, self.limit)
+            all_deals = self.api.get_deals(self.sort_mode, limit=batch_limit)
+
+            # Slice to configured limit for standard deals
+            deals = all_deals[: self.limit]
+
+            # Filter freebies client-side
+            freebies = [
+                d
+                for d in all_deals
+                if d.get("price") == 0
+                or d.get("price") == 0.0
+                or d.get("type") == "Freebie"
+            ]
+
+            # Filter vouchers client-side
+            vouchers = [d for d in all_deals if d.get("type") == "Voucher"]
+
+            # Fetch user profile if logged in with safety delay
             profile = None
             if self.api.username:
+                import time
+
+                time.sleep(1.5)
                 profile = self.api.get_user_profile()
+
             return {
                 "deals": deals,
                 "freebies": freebies,
