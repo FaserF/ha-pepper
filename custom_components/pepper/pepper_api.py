@@ -249,7 +249,7 @@ class PepperAPI:
         if is_voucher:
             filter_vars["isVoucher"] = True
 
-        variables = {"filter": filter_vars, "first": limit}
+        variables = {"filter": filter_vars, "limit": limit}
 
         # Shared thread fields sub-selection
         thread_fields = """
@@ -289,8 +289,8 @@ class PepperAPI:
 
         if sort_mode == "hot":
             query = f"""
-            query HottestWidget($filter: ThreadFilter!, $first: Int) {{
-              hottestWidget(filter: $filter, first: $first) {{
+            query HottestWidget($filter: ThreadFilter!, $limit: Int) {{
+              hottestWidget(filter: $filter, limit: $limit) {{
                 threads {{
                   {thread_fields}
                 }}
@@ -301,8 +301,8 @@ class PepperAPI:
             threads = data.get("hottestWidget", {}).get("threads", []) or []
         else:
             query = f"""
-            query getThreads($filter: ThreadFilter!, $first: Int) {{
-              threads(filter: $filter, first: $first) {{
+            query getThreads($filter: ThreadFilter!, $limit: Int) {{
+              threads(filter: $filter, limit: $limit) {{
                 {thread_fields}
               }}
             }}

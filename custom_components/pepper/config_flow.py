@@ -72,7 +72,7 @@ class PepperConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignor
                     CONF_TEMP_THRESHOLD, default=DEFAULT_TEMP_THRESHOLD
                 ): vol.Coerce(int),
                 vol.Optional(CONF_LIMIT, default=DEFAULT_LIMIT): vol.All(
-                    vol.Coerce(int), vol.Range(min=1, max=100)
+                    vol.Coerce(int), vol.Range(min=1, max=50)
                 ),
                 vol.Optional(CONF_USERNAME, default=""): vol.Coerce(str),
                 vol.Optional(CONF_PASSWORD, default=""): vol.Coerce(str),
@@ -143,7 +143,7 @@ class PepperOptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_LIMIT,
                         self.config_entry.data.get(CONF_LIMIT, DEFAULT_LIMIT),
                     ),
-                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=50)),
                 vol.Optional(
                     CONF_USERNAME,
                     default=self.config_entry.options.get(
