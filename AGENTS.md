@@ -1,4 +1,4 @@
-# AI Agent Reference for ha-mydealz
+# AI Agent Reference for ha-pepper
 
 ---
 

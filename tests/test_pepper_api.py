@@ -90,7 +90,7 @@ def test_get_deals_success(api):
         mock_response.read.return_value = json.dumps(graphql_response).encode("utf-8")
         mock_open.return_value.__enter__.return_value = mock_response
 
-        deals = api.get_deals(sort_mode="hot")
+        deals = api.get_deals(sort_mode="new")
 
         assert len(deals) == 1
         deal = deals[0]
@@ -102,6 +102,54 @@ def test_get_deals_success(api):
         assert (
             deal["image_url"]
             == "https://static.mydealz.de/threads/raw/abc/12345_1/re/300x300/qt/60/12345_1.jpg"
+        )
+
+
+def test_get_deals_hot_success(api):
+    """Test retrieving and parsing hottestWidget deals list (sort_mode='hot')."""
+    api.xsrf_token = "dummy_token"
+
+    graphql_response = {
+        "data": {
+            "hottestWidget": {
+                "threads": [
+                    {
+                        "threadId": "54321",
+                        "title": "Hottest Deal",
+                        "url": "https://www.mydealz.de/deals/hottest-deal-54321",
+                        "price": 19.99,
+                        "temperature": 500.5,
+                        "publishedAt": 1600000000,
+                        "createdAt": 1599999900,
+                        "description": "True hottest deal",
+                        "merchant": {"merchantName": "HotShop"},
+                        "mainImage": {
+                            "path": "threads/raw/def",
+                            "name": "54321_1",
+                        },
+                    }
+                ]
+            }
+        }
+    }
+
+    with patch("urllib.request.OpenerDirector.open") as mock_open:
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(graphql_response).encode("utf-8")
+        mock_open.return_value.__enter__.return_value = mock_response
+
+        deals = api.get_deals(sort_mode="hot")
+
+        assert len(deals) == 1
+        deal = deals[0]
+        assert deal["id"] == "54321"
+        assert deal["title"] == "Hottest Deal"
+        assert deal["price"] == 19.99
+        assert deal["temperature"] == 500.5
+        assert deal["merchant"] == "HotShop"
+        assert (
+            deal["image_url"]
+            == "https://static.mydealz.de/threads/raw/def/54321_1/re/300x300/qt/60/54321_1.jpg"
         )
 
 

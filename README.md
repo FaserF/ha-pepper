@@ -138,6 +138,12 @@ content: >
 
 ---
 
+## 📖 API Documentation
+
+For in-depth details on the private GraphQL endpoints, query schemas, variables, static image CDN patterns, and anti-ban mechanics, refer to the [Pepper Group API Documentation](pepper_api.md).
+
+---
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

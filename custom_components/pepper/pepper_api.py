@@ -150,36 +150,60 @@ class PepperAPI:
         return res_data.get("data", {})
 
     def get_deals(self, sort_mode: str = "hot") -> list[dict[str, Any]]:
-        """Fetch deals with sorting mode 'hot' or 'new'."""
-        query = """
-        query getThreads($filter: ThreadFilter!) {
-          threads(filter: $filter) {
-            threadId
-            title
-            url
-            price
-            temperature
-            publishedAt
-            createdAt
-            description
-            merchant {
-              merchantId
-              merchantName
+        """Fetch deals. If sort_mode is 'hot', fetches via hottestWidget query for actual hottest deals of the day."""
+        variables: dict[str, Any]
+        if sort_mode == "hot":
+            query = """
+            query HottestWidget($filter: ThreadFilter!) {
+              hottestWidget(filter: $filter) {
+                threads {
+                  threadId
+                  title
+                  url
+                  price
+                  temperature
+                  publishedAt
+                  createdAt
+                  description
+                  merchant {
+                    merchantName
+                  }
+                  mainImage {
+                    path
+                    name
+                  }
+                }
+              }
             }
-            mainImage {
-              uid
-              path
-              name
-              ext
+            """
+            variables = {"filter": {}}
+            data = self._query(query, variables)
+            threads = data.get("hottestWidget", {}).get("threads", []) or []
+        else:
+            query = """
+            query getThreads($filter: ThreadFilter!) {
+              threads(filter: $filter) {
+                threadId
+                title
+                url
+                price
+                temperature
+                publishedAt
+                createdAt
+                description
+                merchant {
+                  merchantName
+                }
+                mainImage {
+                  path
+                  name
+                }
+              }
             }
-          }
-        }
-        """
-
-        variables = {"filter": {"sort": {"eq": sort_mode}}}
-
-        data = self._query(query, variables)
-        threads = data.get("threads", [])
+            """
+            variables = {"filter": {}}
+            data = self._query(query, variables)
+            threads = data.get("threads", []) or []
 
         deals = []
         for t in threads:
