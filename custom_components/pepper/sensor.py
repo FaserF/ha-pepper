@@ -1,8 +1,10 @@
 """Sensor platform for Pepper integration."""
 
+import logging
+from datetime import UTC, datetime
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -10,6 +12,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import CONF_KEYWORDS, DOMAIN
 from .coordinator import PepperDataUpdateCoordinator
 from .entity import PepperEntity
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -22,17 +26,21 @@ async def async_setup_entry(
 
     entities: list[SensorEntity] = [
         PepperTopDealsSensor(coordinator, entry),
-        PepperKeywordAlertsSensor(coordinator, entry),
         PepperFreebiesSensor(coordinator, entry),
+        # Disabled by default
+        PepperKeywordAlertsSensor(coordinator, entry),
         PepperVouchersSensor(coordinator, entry),
+        PepperNewDealsCountSensor(coordinator, entry),
+        PepperExpiredDealsCountSensor(coordinator, entry),
+        PepperPickedDealsCountSensor(coordinator, entry),
+        PepperTopMerchantSensor(coordinator, entry),
     ]
 
     if coordinator.api.username:
         entities.extend(
             [
-                PepperUserKarmaSensor(coordinator, entry),
-                PepperUserNotificationsSensor(coordinator, entry),
-                PepperUserConversationsSensor(coordinator, entry),
+                PepperUserThreadCountSensor(coordinator, entry),
+                PepperUserCommentCountSensor(coordinator, entry),
             ]
         )
 
@@ -79,7 +87,6 @@ class PepperKeywordAlertsSensor(PepperEntity, SensorEntity):
     """Representation of a Pepper keyword alerts sensor."""
 
     _attr_icon = "mdi:bell-ring"
-    # Disabled by default, user can enable it if they use keywords
     _attr_entity_registry_enabled_default = False
 
     def __init__(
@@ -176,7 +183,6 @@ class PepperVouchersSensor(PepperEntity, SensorEntity):
     """Representation of a Pepper vouchers sensor."""
 
     _attr_icon = "mdi:ticket-percent"
-    # Disabled by default
     _attr_entity_registry_enabled_default = False
 
     def __init__(
@@ -208,11 +214,11 @@ class PepperVouchersSensor(PepperEntity, SensorEntity):
         }
 
 
-class PepperUserKarmaSensor(PepperEntity, SensorEntity):
-    """Representation of a Pepper user karma sensor."""
+class PepperNewDealsCountSensor(PepperEntity, SensorEntity):
+    """Sensor that counts deals published within the last hour."""
 
-    _attr_icon = "mdi:star"
-    # Disabled by default
+    _attr_icon = "mdi:new-box"
+    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_registry_enabled_default = False
 
     def __init__(
@@ -222,25 +228,38 @@ class PepperUserKarmaSensor(PepperEntity, SensorEntity):
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
-        self._attr_unique_id = f"{entry.entry_id}_user_karma"
-        self._attr_name = "User Karma"
+        self._attr_unique_id = f"{entry.entry_id}_new_deals_count"
+        self._attr_name = "New Deals (Last Hour)"
+
+    def _get_new_deals(self) -> list[dict[str, Any]]:
+        """Return deals published in the last 60 minutes."""
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        now_ts = datetime.now(tz=UTC).timestamp()
+        cutoff = now_ts - 3600  # 1 hour in seconds
+        return [
+            d for d in deals if d.get("published_at") and d["published_at"] >= cutoff
+        ]
 
     @property
-    def native_value(self) -> int | None:
-        """Return the karma points of the user."""
-        if not self.coordinator.data:
-            return None
-        profile = self.coordinator.data.get("profile")
-        if profile:
-            return profile.get("karma")
-        return None
+    def native_value(self) -> int:
+        """Return count of deals published in the last hour."""
+        return len(self._get_new_deals())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes."""
+        new_deals = self._get_new_deals()
+        return {
+            "new_deals_count": len(new_deals),
+            "deals": new_deals,
+        }
 
 
-class PepperUserNotificationsSensor(PepperEntity, SensorEntity):
-    """Representation of a Pepper user notifications sensor."""
+class PepperExpiredDealsCountSensor(PepperEntity, SensorEntity):
+    """Sensor that counts currently expired deals in the feed."""
 
-    _attr_icon = "mdi:bell"
-    # Disabled by default
+    _attr_icon = "mdi:timer-off-outline"
+    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_registry_enabled_default = False
 
     def __init__(
@@ -250,25 +269,34 @@ class PepperUserNotificationsSensor(PepperEntity, SensorEntity):
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
-        self._attr_unique_id = f"{entry.entry_id}_user_notifications"
-        self._attr_name = "User Notifications"
+        self._attr_unique_id = f"{entry.entry_id}_expired_deals_count"
+        self._attr_name = "Expired Deals"
+
+    def _get_expired_deals(self) -> list[dict[str, Any]]:
+        """Return deals flagged as expired."""
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        return [d for d in deals if d.get("is_expired")]
 
     @property
-    def native_value(self) -> int | None:
-        """Return the count of unread notifications."""
-        if not self.coordinator.data:
-            return None
-        profile = self.coordinator.data.get("profile")
-        if profile:
-            return profile.get("notificationUnreadCount")
-        return None
+    def native_value(self) -> int:
+        """Return count of expired deals."""
+        return len(self._get_expired_deals())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes."""
+        expired = self._get_expired_deals()
+        return {
+            "expired_count": len(expired),
+            "deals": expired,
+        }
 
 
-class PepperUserConversationsSensor(PepperEntity, SensorEntity):
-    """Representation of a Pepper user conversations sensor."""
+class PepperPickedDealsCountSensor(PepperEntity, SensorEntity):
+    """Sensor that counts deals that have been featured/picked by editors."""
 
-    _attr_icon = "mdi:message-text"
-    # Disabled by default
+    _attr_icon = "mdi:star-circle"
+    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_registry_enabled_default = False
 
     def __init__(
@@ -278,15 +306,145 @@ class PepperUserConversationsSensor(PepperEntity, SensorEntity):
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
-        self._attr_unique_id = f"{entry.entry_id}_user_conversations"
-        self._attr_name = "User Conversations"
+        self._attr_unique_id = f"{entry.entry_id}_picked_deals_count"
+        self._attr_name = "Picked Deals"
+
+    def _get_picked_deals(self) -> list[dict[str, Any]]:
+        """Return deals that have been featured/picked (pickedAt > 0)."""
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        return [d for d in deals if d.get("picked_at") and d["picked_at"] > 0]
+
+    @property
+    def native_value(self) -> int:
+        """Return count of featured/picked deals."""
+        return len(self._get_picked_deals())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes."""
+        picked = self._get_picked_deals()
+        return {
+            "picked_count": len(picked),
+            "deals": picked,
+        }
+
+
+class PepperTopMerchantSensor(PepperEntity, SensorEntity):
+    """Sensor showing the merchant with the most deals in the current feed."""
+
+    _attr_icon = "mdi:store"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_top_merchant"
+        self._attr_name = "Top Merchant"
+
+    def _get_merchant_stats(self) -> dict[str, int]:
+        """Count deals per merchant in the current feed."""
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        stats: dict[str, int] = {}
+        for deal in deals:
+            merchant = deal.get("merchant")
+            if merchant:
+                stats[merchant] = stats.get(merchant, 0) + 1
+        return stats
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the merchant name with the most deals."""
+        stats = self._get_merchant_stats()
+        if not stats:
+            return None
+        return max(stats, key=lambda k: stats[k])
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes."""
+        stats = self._get_merchant_stats()
+        top = self.native_value
+        top_count = stats.get(top, 0) if top else 0
+        return {
+            "top_merchant": top,
+            "top_merchant_deal_count": top_count,
+            "merchant_deal_counts": stats,
+        }
+
+
+class PepperUserThreadCountSensor(PepperEntity, SensorEntity):
+    """Sensor showing the number of threads/deals the user has submitted."""
+
+    _attr_icon = "mdi:post"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_user_thread_count"
+        self._attr_name = "User Thread Count"
 
     @property
     def native_value(self) -> int | None:
-        """Return the count of unread conversations."""
+        """Return the number of threads posted by the user."""
         if not self.coordinator.data:
             return None
         profile = self.coordinator.data.get("profile")
         if profile:
-            return profile.get("unreadConversationsCount")
+            return profile.get("threadCount")
         return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes."""
+        profile = self.coordinator.data.get("profile") if self.coordinator.data else {}
+        return {
+            "username": (profile or {}).get("username"),
+            "user_id": (profile or {}).get("userId"),
+        }
+
+
+class PepperUserCommentCountSensor(PepperEntity, SensorEntity):
+    """Sensor showing the number of comments the user has posted."""
+
+    _attr_icon = "mdi:comment-multiple"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_user_comment_count"
+        self._attr_name = "User Comment Count"
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the number of comments posted by the user."""
+        if not self.coordinator.data:
+            return None
+        profile = self.coordinator.data.get("profile")
+        if profile:
+            return profile.get("commentCount")
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes."""
+        profile = self.coordinator.data.get("profile") if self.coordinator.data else {}
+        return {
+            "username": (profile or {}).get("username"),
+            "user_id": (profile or {}).get("userId"),
+        }

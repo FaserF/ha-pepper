@@ -169,14 +169,19 @@ class PepperAPI:
         return res_data.get("data", {})
 
     def login(self) -> None:
-        """Log in to the Pepper platform."""
+        """Log in to the Pepper platform.
+
+        Uses the ``loginUser`` mutation with ``LoginUserInput`` — the correct
+        mutation name as of 2025 (``login``/``LoginInput`` are deprecated and
+        no longer available in the API schema).
+        """
         if not self.username or not self.password:
             return
 
         _LOGGER.debug("Logging in to %s with username %s", self.platform, self.username)
         query = """
-        mutation login($input: LoginInput!) {
-          login(input: $input) {
+        mutation login($input: LoginUserInput!) {
+          loginUser(input: $input) {
             user {
               userId
               username
@@ -193,15 +198,28 @@ class PepperAPI:
         self._query(query, variables)
 
     def get_user_profile(self) -> dict[str, Any]:
-        """Fetch the logged-in user profile details."""
+        """Fetch the logged-in user profile details.
+
+        Note: ``karma``, ``notificationUnreadCount``, and
+        ``unreadConversationsCount`` are no longer available in the API schema
+        and have been removed from this query.
+        """
         query = """
         query getMe {
           me {
             userId
             username
-            karma
-            notificationUnreadCount
-            unreadConversationsCount
+            email
+            createdAt
+            threadCount
+            commentCount
+            avatar {
+              path
+              name
+            }
+            badges {
+              badgeId
+            }
           }
         }
         """
@@ -214,7 +232,16 @@ class PepperAPI:
         is_freebies: bool = False,
         is_voucher: bool = False,
     ) -> list[dict[str, Any]]:
-        """Fetch deals. If sort_mode is 'hot', fetches via hottestWidget query for actual hottest deals of the day."""
+        """Fetch deals.
+
+        If sort_mode is 'hot', fetches via hottestWidget query for actual
+        hottest deals of the day.  All confirmed Thread fields are requested,
+        including ``voucherCode`` (the correct name; old docs used
+        ``couponCode``), ``nextBestPrice``, ``type``, ``status``,
+        ``isExpired``, ``expirable``, ``pickedAt``, ``commentCount``,
+        ``shareCount``, ``shareableLink``, submitter ``user``, and full
+        ``merchant`` details.
+        """
         filter_vars: dict[str, Any] = {}
         if is_freebies:
             filter_vars["isFreebies"] = True
@@ -223,55 +250,61 @@ class PepperAPI:
 
         variables = {"filter": filter_vars}
 
-        if sort_mode == "hot":
-            query = """
-            query HottestWidget($filter: ThreadFilter!) {
-              hottestWidget(filter: $filter) {
-                threads {
+        # Shared thread fields sub-selection
+        thread_fields = """
                   threadId
                   title
                   url
+                  shareableLink
                   price
+                  nextBestPrice
                   temperature
                   publishedAt
                   createdAt
+                  pickedAt
                   description
-                  couponCode
-                  merchant {
-                    merchantName
-                  }
+                  voucherCode
+                  type
+                  status
+                  isExpired
+                  expirable
+                  commentCount
+                  shareCount
                   mainImage {
                     path
                     name
                   }
-                }
-              }
-            }
+                  merchant {
+                    merchantId
+                    merchantName
+                    merchantPageUrl
+                    merchantUrlName
+                  }
+                  user {
+                    userId
+                    username
+                  }
+        """
+
+        if sort_mode == "hot":
+            query = f"""
+            query HottestWidget($filter: ThreadFilter!) {{
+              hottestWidget(filter: $filter) {{
+                threads {{
+                  {thread_fields}
+                }}
+              }}
+            }}
             """
             data = self._query(query, variables)
             threads = data.get("hottestWidget", {}).get("threads", []) or []
         else:
-            query = """
-            query getThreads($filter: ThreadFilter!) {
-              threads(filter: $filter) {
-                threadId
-                title
-                url
-                price
-                temperature
-                publishedAt
-                createdAt
-                description
-                couponCode
-                merchant {
-                  merchantName
-                }
-                mainImage {
-                  path
-                  name
-                }
-              }
-            }
+            query = f"""
+            query getThreads($filter: ThreadFilter!) {{
+              threads(filter: $filter) {{
+                {thread_fields}
+              }}
+            }}
             """
             data = self._query(query, variables)
             threads = data.get("threads", []) or []
@@ -288,22 +321,34 @@ class PepperAPI:
                     f"{self.image_host}/{path}/{name}/re/300x300/qt/60/{name}.jpg"
                 )
 
-            merchant_name = None
-            merchant = t.get("merchant")
-            if merchant:
-                merchant_name = merchant.get("merchantName")
+            merchant = t.get("merchant") or {}
+            user = t.get("user") or {}
 
             deal = {
                 "id": t.get("threadId"),
                 "title": t.get("title"),
                 "url": t.get("url"),
+                "shareable_link": t.get("shareableLink"),
                 "price": t.get("price"),
+                "next_best_price": t.get("nextBestPrice"),
                 "temperature": t.get("temperature"),
                 "published_at": t.get("publishedAt"),
                 "created_at": t.get("createdAt"),
+                "picked_at": t.get("pickedAt"),
                 "description": t.get("description"),
-                "coupon_code": t.get("couponCode"),
-                "merchant": merchant_name,
+                "voucher_code": t.get("voucherCode"),
+                "type": t.get("type"),
+                "status": t.get("status"),
+                "is_expired": t.get("isExpired"),
+                "expirable": t.get("expirable"),
+                "comment_count": t.get("commentCount"),
+                "share_count": t.get("shareCount"),
+                "merchant": merchant.get("merchantName"),
+                "merchant_id": merchant.get("merchantId"),
+                "merchant_page_url": merchant.get("merchantPageUrl"),
+                "merchant_url_name": merchant.get("merchantUrlName"),
+                "submitter_id": user.get("userId"),
+                "submitter": user.get("username"),
                 "image_url": image_url,
             }
             deals.append(deal)

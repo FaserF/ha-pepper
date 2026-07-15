@@ -43,7 +43,9 @@ def test_platform(domain, name):
             print(f"   Success! Fetched {len(deals)} deals.")
             if deals:
                 deal = deals[0]
-                safe_title = deal['title'].encode('ascii', errors='replace').decode('ascii')
+                safe_title = (
+                    deal["title"].encode("ascii", errors="replace").decode("ascii")
+                )
                 print(
                     f"   Sample Deal: {safe_title} | Temp: {deal['temperature']}° | Price: {deal['price']}"
                 )
