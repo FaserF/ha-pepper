@@ -65,12 +65,18 @@ class PepperAPI:
         self.image_host = f"https://static.{platform}"
 
         self._cookie_jar = http.cookiejar.CookieJar()
-        self._opener = urllib.request.build_opener(
-            urllib.request.HTTPCookieProcessor(self._cookie_jar)
-        )
+        self._opener: urllib.request.OpenerDirector | None = None
         self.xsrf_token: str | None = None
         self._headers = get_random_headers()
         self._logging_in = False
+
+    def _get_opener(self) -> urllib.request.OpenerDirector:
+        """Get or build the urllib opener dynamically to avoid blocking SSL initialization during object creation."""
+        if self._opener is None:
+            self._opener = urllib.request.build_opener(
+                urllib.request.HTTPCookieProcessor(self._cookie_jar)
+            )
+        return self._opener
 
     def fetch_session(self) -> None:
         """Fetch the home page to get session cookies and XSRF token."""
@@ -80,8 +86,9 @@ class PepperAPI:
         # Rotate headers
         self._headers = get_random_headers()
         req = urllib.request.Request(self.base_url, headers=self._headers)
+        opener = self._get_opener()
         try:
-            with self._opener.open(req, timeout=10) as response:
+            with opener.open(req, timeout=10) as response:
                 response.read()
         except Exception as err:
             _LOGGER.error(
@@ -111,7 +118,9 @@ class PepperAPI:
             finally:
                 self._logging_in = False
 
-    def _query(self, query_str: str, variables: dict[str, Any]) -> dict[str, Any]:
+    def _query(
+        self, query_str: str, variables: dict[str, Any], retry_count: int = 0
+    ) -> dict[str, Any]:
         """Perform a GraphQL query."""
         if not self.xsrf_token:
             self.fetch_session()
@@ -145,17 +154,18 @@ class PepperAPI:
         )
 
         try:
-            with self._opener.open(req, timeout=10) as response:
+            opener = self._get_opener()
+            with opener.open(req, timeout=10) as response:
                 res_data = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as err:
             # Handle Teapot or expired session
-            if err.code == 418:
+            if err.code == 418 and retry_count < 1:
                 _LOGGER.info(
                     "Session expired or teapot block (418), re-fetching session"
                 )
                 self.fetch_session()
                 # Retry once
-                return self._query(query_str, variables)
+                return self._query(query_str, variables, retry_count=retry_count + 1)
             raise ConnectionError(f"HTTP Error {err.code}: {err.reason}") from err
         except Exception as err:
             _LOGGER.error("Query failed: %s", err)
@@ -244,10 +254,8 @@ class PepperAPI:
         ``merchant`` details.
         """
         filter_vars: dict[str, Any] = {}
-        if is_freebies:
-            filter_vars["isFreebies"] = True
         if is_voucher:
-            filter_vars["isVoucher"] = True
+            filter_vars["type"] = {"eq": "Voucher"}
 
         variables = {"filter": filter_vars, "limit": limit}
 
@@ -256,7 +264,6 @@ class PepperAPI:
                   threadId
                   title
                   url
-                  shareableLink
                   price
                   nextBestPrice
                   temperature
@@ -329,7 +336,6 @@ class PepperAPI:
                 "id": t.get("threadId"),
                 "title": t.get("title"),
                 "url": t.get("url"),
-                "shareable_link": t.get("shareableLink"),
                 "price": t.get("price"),
                 "next_best_price": t.get("nextBestPrice"),
                 "temperature": t.get("temperature"),
@@ -354,6 +360,15 @@ class PepperAPI:
             }
             deals.append(deal)
 
+        if is_freebies:
+            return [
+                d
+                for d in deals
+                if d.get("price") == 0
+                or d.get("price") == 0.0
+                or d.get("type") == "Freebie"
+            ]
+
         return deals
 
     def search_deals(self, query: str) -> list[dict[str, Any]]:
@@ -370,7 +385,8 @@ class PepperAPI:
         req = urllib.request.Request(search_url, headers=headers)
 
         try:
-            with self._opener.open(req, timeout=10) as response:
+            opener = self._get_opener()
+            with opener.open(req, timeout=10) as response:
                 html_content = response.read().decode("utf-8")
         except Exception as err:
             _LOGGER.error("Failed to fetch search page: %s", err)

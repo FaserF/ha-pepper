@@ -58,7 +58,6 @@ query HottestWidget($filter: ThreadFilter!) {
       threadId
       title
       url
-      shareableLink
       price
       nextBestPrice
       temperature
@@ -113,7 +112,6 @@ query getThreads($filter: ThreadFilter!) {
     threadId
     title
     url
-    shareableLink
     price
     nextBestPrice
     temperature
@@ -168,7 +166,6 @@ All fields below were confirmed to exist on the `Thread` type via live API probi
 | `threadId` | String | Unique deal/thread identifier |
 | `title` | String | Deal title |
 | `url` | String | Direct link to deal page |
-| `shareableLink` | String | Short/shareable link (may be null) |
 | `price` | Float | Current deal price (null if freebie or voucher only) |
 | `nextBestPrice` | Float | Historical best price for comparison (may be null) |
 | `temperature` | Float | Community heat score (can be negative) |

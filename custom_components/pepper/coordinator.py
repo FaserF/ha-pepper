@@ -46,10 +46,8 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         def _fetch_all_data() -> dict[str, Any]:
             # Fetch normal deals
             deals = self.api.get_deals(self.sort_mode, limit=self.limit)
-            # Fetch freebies
-            freebies = self.api.get_deals(
-                self.sort_mode, is_freebies=True, limit=self.limit
-            )
+            # Fetch freebies (force higher limit of 100 to ensure client-side filter finds freebies)
+            freebies = self.api.get_deals(self.sort_mode, is_freebies=True, limit=max(100, self.limit))
             # Fetch vouchers
             vouchers = self.api.get_deals(
                 self.sort_mode, is_voucher=True, limit=self.limit

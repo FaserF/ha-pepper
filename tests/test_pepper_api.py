@@ -145,7 +145,6 @@ def _make_thread(overrides: dict | None = None) -> dict:
         "threadId": "12345",
         "title": "Super Deal",
         "url": "https://www.mydealz.de/deals/super-deal-12345",
-        "shareableLink": "https://www.mydealz.de/d/12345",
         "price": 9.99,
         "nextBestPrice": 14.99,
         "temperature": 100.5,
@@ -209,7 +208,6 @@ def test_get_deals_new_mode_full_fields(api: PepperAPI) -> None:
     assert deal["comment_count"] == 7
     assert deal["share_count"] == 3
     assert deal["picked_at"] == 1600001000
-    assert deal["shareable_link"] == "https://www.mydealz.de/d/12345"
 
     # Merchant
     assert deal["merchant"] == "SuperShop"
@@ -336,7 +334,7 @@ def test_get_deals_no_user(api: PepperAPI) -> None:
 
 
 def test_get_deals_freebies_filter(api: PepperAPI) -> None:
-    """Test is_freebies filter is sent in variables."""
+    """Test is_freebies filter does not append variables to GraphQL (client side only)."""
     api.xsrf_token = "dummy_token"
     captured: list[dict] = []
 
@@ -353,11 +351,11 @@ def test_get_deals_freebies_filter(api: PepperAPI) -> None:
     with patch("urllib.request.OpenerDirector.open", side_effect=capture_and_respond):
         api.get_deals(sort_mode="new", is_freebies=True)
 
-    assert captured[0]["variables"]["filter"].get("isFreebies") is True
+    assert captured[0]["variables"]["filter"] == {}
 
 
 def test_get_deals_voucher_filter(api: PepperAPI) -> None:
-    """Test is_voucher filter is sent in variables."""
+    """Test is_voucher filter is sent in variables as type mapping."""
     api.xsrf_token = "dummy_token"
     captured: list[dict] = []
 
@@ -374,7 +372,7 @@ def test_get_deals_voucher_filter(api: PepperAPI) -> None:
     with patch("urllib.request.OpenerDirector.open", side_effect=capture_and_respond):
         api.get_deals(sort_mode="new", is_voucher=True)
 
-    assert captured[0]["variables"]["filter"].get("isVoucher") is True
+    assert captured[0]["variables"]["filter"].get("type") == {"eq": "Voucher"}
 
 
 def test_get_deals_graphql_error(api: PepperAPI) -> None:

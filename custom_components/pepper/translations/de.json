@@ -34,5 +34,21 @@
         }
       }
     }
+  },
+  "services": {
+    "search": {
+      "name": "Deal-Suche",
+      "description": "Durchsuche die ausgewählte Pepper-Plattform nach Deals.",
+      "fields": {
+        "query": {
+          "name": "Suchbegriff",
+          "description": "Der Begriff, nach dem gesucht werden soll (z. B. 'playstation')."
+        }
+      }
+    },
+    "refresh": {
+      "name": "Aktualisieren",
+      "description": "Lade sofort die neuesten Daten von der Pepper-Plattform herunter."
+    }
   }
 }

@@ -111,7 +111,6 @@ Every deal object in sensor attributes includes the following fields:
 | `id` | string | Unique thread/deal ID |
 | `title` | string | Deal title |
 | `url` | string | Link to the deal page |
-| `shareable_link` | string | Short shareable URL |
 | `price` | float | Current deal price |
 | `next_best_price` | float | Historical best price (for price comparison) |
 | `temperature` | float | Community heat/vote score |

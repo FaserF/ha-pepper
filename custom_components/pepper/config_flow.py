@@ -87,15 +87,11 @@ class PepperConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignor
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
         """Create the options flow."""
-        return PepperOptionsFlowHandler(config_entry)
+        return PepperOptionsFlowHandler()
 
 
 class PepperOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle Pepper options flow."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        super().__init__(config_entry)
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None

@@ -34,5 +34,21 @@
         }
       }
     }
+  },
+  "services": {
+    "search": {
+      "name": "Search Deals",
+      "description": "Search the selected Pepper platform for active deals.",
+      "fields": {
+        "query": {
+          "name": "Query",
+          "description": "The keyword to search for (e.g. 'playstation')."
+        }
+      }
+    },
+    "refresh": {
+      "name": "Refresh",
+      "description": "Force the integration to immediately pull the latest data from the platform."
+    }
   }
 }
