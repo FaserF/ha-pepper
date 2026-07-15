@@ -69,7 +69,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Search deals service."""
         query = call.data["query"]
         deals = await hass.async_add_executor_job(api.search_deals, query)
-        return {"deals": deals}
+        from typing import cast
+        return cast(ServiceResponse, {"deals": deals})
 
     hass.services.async_register(
         DOMAIN,

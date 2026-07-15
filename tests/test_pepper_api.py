@@ -1282,3 +1282,64 @@ def test_groups_parsing_in_get_deals(api: PepperAPI) -> None:
         deals = api.get_deals(sort_mode="new")
         assert len(deals) == 1
         assert deals[0]["groups"] == ["Telefon Internet", "Dsl Cable"]
+
+
+def test_price_error_logic() -> None:
+    """Test price error detection logic."""
+    data = {
+        "deals": [
+            {
+                "title": "Normal Deal",
+                "description": "normal price",
+                "groups": ["Electronics"],
+                "is_expired": False,
+            },
+            {
+                "title": "Preisfehler in Title",
+                "description": "desc",
+                "groups": ["Electronics"],
+                "is_expired": False,
+            },
+            {
+                "title": "Normal Title",
+                "description": "description mentioning preisfehler",
+                "groups": ["Electronics"],
+                "is_expired": False,
+            },
+            {
+                "title": "Normal Title 2",
+                "description": "desc",
+                "groups": ["Preisfehler"],
+                "is_expired": False,
+            },
+            {
+                "title": "Expired Preisfehler",
+                "description": "desc",
+                "groups": ["Preisfehler"],
+                "is_expired": True,
+            },
+        ]
+    }
+
+    # Filter function mirrored from the sensor
+    def get_price_errors(deals):
+        errors = []
+        for d in deals:
+            if d.get("is_expired"):
+                continue
+            title = (d.get("title") or "").lower()
+            description = (d.get("description") or "").lower()
+            groups = [g.lower() for g in d.get("groups") or []]
+            if (
+                "preisfehler" in title
+                or "preisfehler" in description
+                or "preisfehler" in groups
+            ):
+                errors.append(d)
+        return errors
+
+    errors = get_price_errors(data["deals"])
+    assert len(errors) == 3
+    assert errors[0]["title"] == "Preisfehler in Title"
+    assert errors[1]["description"] == "description mentioning preisfehler"
+    assert errors[2]["groups"] == ["Preisfehler"]

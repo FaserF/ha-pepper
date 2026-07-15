@@ -84,6 +84,8 @@ A powerful, robust Home Assistant integration for **Pepper Deal Platforms** (MyD
 | 🧑‍💻 **Top Submitter** | `sensor.pepper_top_submitter` | Submitter name with the most deals in the current feed. |
 | 📁 **Top Group** | `sensor.pepper_top_group` | Most frequent category/group in the feed. |
 | 🌶️ **Hottest Deal Title** | `sensor.pepper_hottest_deal_title` | Title of the hottest deal in the feed. |
+| ⚠️ **Price Errors** | `sensor.pepper_price_errors` | Count of active (non-expired) price error deals in the feed. |
+
 
 ### User Sensors *(requires login, disabled by default)*
 
@@ -112,6 +114,8 @@ All binary sensors are **disabled by default**.
 | ⌛ **Expirable Deal Available** | `binary_sensor.pepper_expirable_deal_available` | Any active (non-expired) deal has an expiration date. |
 | 🔔 **Keyword Match Available** | `binary_sensor.pepper_keyword_match_available` | Any active (non-expired) deal matches the configured keywords. |
 | 🌶️ **Super Hot Deal Available** | `binary_sensor.pepper_super_hot_deal_available` | Any deal temperature in the feed exceeds 500°. |
+| ⚠️ **Price Error Available** | `binary_sensor.pepper_price_error_available` | Any active (non-expired) price error deal is in the feed. |
+
 
 ---
 

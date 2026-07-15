@@ -178,6 +178,7 @@ ruff_errors.json
 *result*.txt
 /dummy_ha
 *.txt
+!docs/requirements.txt
 *output*.json
 test_live.py
 /scratch

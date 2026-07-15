@@ -55,6 +55,7 @@ async def async_setup_entry(
         PepperTopSubmitterSensor(coordinator, entry),
         PepperTopGroupSensor(coordinator, entry),
         PepperHottestDealTitleSensor(coordinator, entry),
+        PepperPriceErrorsSensor(coordinator, entry),
     ]
 
     if coordinator.api.username:
@@ -1358,3 +1359,55 @@ class PepperUserAvatarSensor(PepperEntity, SensorEntity):
         if profile and profile.get("avatar"):
             return {"avatar": profile["avatar"]}
         return {}
+
+
+class PepperPriceErrorsSensor(PepperEntity, SensorEntity):
+    """Sensor that counts active (non-expired) price error deals in the feed."""
+
+    _attr_icon = "mdi:alert-decagram"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_price_errors"
+        self._attr_name = "Price Errors"
+
+    def _get_price_errors(self) -> list[dict[str, Any]]:
+        """Get active price error deals."""
+        if not self.coordinator.data:
+            return []
+        deals = self.coordinator.data.get("deals", [])
+        errors = []
+        for d in deals:
+            if d.get("is_expired"):
+                continue
+            title = (d.get("title") or "").lower()
+            description = (d.get("description") or "").lower()
+            groups = [g.lower() for g in d.get("groups") or []]
+            if (
+                "preisfehler" in title
+                or "preisfehler" in description
+                or "preisfehler" in groups
+            ):
+                errors.append(d)
+        return errors
+
+    @property
+    def native_value(self) -> int:
+        """Return count of active price error deals."""
+        return len(self._get_price_errors())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return price error deals."""
+        errors = self._get_price_errors()
+        return {
+            "price_errors_count": len(errors),
+            "deals": errors,
+        }
