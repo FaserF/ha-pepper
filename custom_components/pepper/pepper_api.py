@@ -111,7 +111,13 @@ class PepperAPI:
         if self.username and self.password and not self._logging_in:
             try:
                 self._logging_in = True
+                import time
+
+                _LOGGER.debug("Waiting 2.0s before logging in to mimic human typing")
+                time.sleep(2.0)
                 self.login()
+                _LOGGER.debug("Waiting 1.5s after login to let session settle")
+                time.sleep(1.5)
             except Exception as err:
                 _LOGGER.error("Failed to log in during session fetch: %s", err)
                 raise ConnectionError(f"Login failed: {err}") from err
