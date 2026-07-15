@@ -41,12 +41,18 @@ class PepperConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignor
         if user_input is not None:
             # Validate connection by doing a test fetch on the selected platform
             try:
+                # Validate credentials and establish session
                 api = PepperAPI(
                     platform=user_input[CONF_PLATFORM],
                     username=user_input.get(CONF_USERNAME),
                     password=user_input.get(CONF_PASSWORD),
                 )
                 await self.hass.async_add_executor_job(api.fetch_session)
+
+                # Store the verified session cookies, xsrf token, and headers to avoid double-login during entry setup
+                user_input["cookies"] = api.dump_session_cookies()
+                user_input["xsrf_token"] = api.xsrf_token
+                user_input["headers"] = api._headers
 
                 name = PLATFORMS_MAP.get(
                     user_input[CONF_PLATFORM], user_input[CONF_PLATFORM]

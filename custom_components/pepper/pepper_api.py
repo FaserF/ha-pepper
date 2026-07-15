@@ -55,6 +55,9 @@ class PepperAPI:
         platform: str = "mydealz.de",
         username: str | None = None,
         password: str | None = None,
+        cookies: list[dict[str, Any]] | None = None,
+        xsrf_token: str | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         """Initialize the client."""
         self.platform = platform
@@ -65,10 +68,69 @@ class PepperAPI:
         self.image_host = f"https://static.{platform}"
 
         self._cookie_jar = http.cookiejar.CookieJar()
+        if cookies:
+            self.load_session_cookies(cookies)
         self._opener: urllib.request.OpenerDirector | None = None
-        self.xsrf_token: str | None = None
-        self._headers = get_random_headers()
+        self.xsrf_token = xsrf_token
+        self._headers = headers if headers else get_random_headers()
         self._logging_in = False
+
+    def dump_session_cookies(self) -> list[dict[str, Any]]:
+        """Dump session cookies to list of dicts for serialization."""
+        cookies = []
+        for cookie in self._cookie_jar:
+            cookies.append(
+                {
+                    "version": cookie.version,
+                    "name": cookie.name,
+                    "value": cookie.value,
+                    "port": cookie.port,
+                    "port_specified": cookie.port_specified,
+                    "domain": cookie.domain,
+                    "domain_specified": cookie.domain_specified,
+                    "domain_initial_dot": cookie.domain_initial_dot,
+                    "path": cookie.path,
+                    "path_specified": cookie.path_specified,
+                    "secure": cookie.secure,
+                    "expires": cookie.expires,
+                    "discard": cookie.discard,
+                    "comment": cookie.comment,
+                    "comment_url": cookie.comment_url,
+                    "rfc2109": cookie.rfc2109,
+                }
+            )
+        return cookies
+
+    def load_session_cookies(self, cookies_list: list[dict[str, Any]]) -> None:
+        """Load session cookies from list of dicts."""
+        for c in cookies_list:
+            cookie = http.cookiejar.Cookie(
+                version=c.get("version"),
+                name=c.get("name"),  # type: ignore[arg-type]
+                value=c.get("value"),
+                port=c.get("port"),
+                port_specified=c.get("port_specified"),  # type: ignore[arg-type]
+                domain=c.get("domain"),  # type: ignore[arg-type]
+                domain_specified=c.get("domain_specified"),  # type: ignore[arg-type]
+                domain_initial_dot=c.get("domain_initial_dot"),  # type: ignore[arg-type]
+                path=c.get("path"),  # type: ignore[arg-type]
+                path_specified=c.get("path_specified"),  # type: ignore[arg-type]
+                secure=c.get("secure"),  # type: ignore[arg-type]
+                expires=c.get("expires"),
+                discard=c.get("discard"),  # type: ignore[arg-type]
+                comment=c.get("comment"),
+                comment_url=c.get("comment_url"),
+                rest={},
+                rfc2109=c.get("rfc2109"),  # type: ignore[arg-type]
+            )
+            self._cookie_jar.set_cookie(cookie)
+
+    def _update_xsrf_token_from_cookies(self) -> None:
+        """Extract the current xsrf_t token from the cookie jar."""
+        for cookie in self._cookie_jar:
+            if cookie.name == "xsrf_t" and cookie.value is not None:
+                self.xsrf_token = cookie.value.replace('"', "")
+                break
 
     def _get_opener(self) -> urllib.request.OpenerDirector:
         """Get or build the urllib opener dynamically to avoid blocking SSL initialization during object creation."""
@@ -99,10 +161,7 @@ class PepperAPI:
             ) from err
 
         # Extract xsrf_t cookie
-        for cookie in self._cookie_jar:
-            if cookie.name == "xsrf_t" and cookie.value is not None:
-                self.xsrf_token = cookie.value.replace('"', "")
-                break
+        self._update_xsrf_token_from_cookies()
 
         if not self.xsrf_token:
             raise ValueError("XSRF token (xsrf_t) not found in cookies")
@@ -111,13 +170,21 @@ class PepperAPI:
         if self.username and self.password and not self._logging_in:
             try:
                 self._logging_in = True
-                import time
+                import sys
 
-                _LOGGER.debug("Waiting 2.0s before logging in to mimic human typing")
-                time.sleep(2.0)
+                if "pytest" not in sys.modules and "unittest" not in sys.modules:
+                    import time
+
+                    _LOGGER.debug(
+                        "Waiting 2.0s before logging in to mimic human typing"
+                    )
+                    time.sleep(2.0)
                 self.login()
-                _LOGGER.debug("Waiting 1.5s after login to let session settle")
-                time.sleep(1.5)
+                if "pytest" not in sys.modules and "unittest" not in sys.modules:
+                    import time
+
+                    _LOGGER.debug("Waiting 1.5s after login to let session settle")
+                    time.sleep(1.5)
             except Exception as err:
                 _LOGGER.error("Failed to log in during session fetch: %s", err)
                 raise ConnectionError(f"Login failed: {err}") from err
@@ -128,6 +195,14 @@ class PepperAPI:
         self, query_str: str, variables: dict[str, Any], retry_count: int = 0
     ) -> dict[str, Any]:
         """Perform a GraphQL query."""
+        import sys
+
+        if "pytest" not in sys.modules and "unittest" not in sys.modules:
+            import time
+
+            _LOGGER.debug("Waiting 2.0s to rate-limit GraphQL POST request")
+            time.sleep(2.0)
+
         if not self.xsrf_token:
             self.fetch_session()
 
@@ -181,6 +256,9 @@ class PepperAPI:
             err_msg = res_data["errors"][0].get("message", "Unknown GraphQL error")
             _LOGGER.error("GraphQL errors: %s", res_data["errors"])
             raise ValueError(f"GraphQL Query Error: {err_msg}")
+
+        # Keep xsrf_token updated in case the response set a new xsrf_t cookie (e.g. after login mutation)
+        self._update_xsrf_token_from_cookies()
 
         return res_data.get("data", {})
 

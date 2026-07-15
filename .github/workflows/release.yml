@@ -118,6 +118,13 @@ jobs:
             python .github/scripts/update_templates.py "${{ needs.versioning.outputs.version }}"
           fi
 
+      - name: Upload Updated Components
+        uses: actions/upload-artifact@v7
+        with:
+          name: updated-components
+          path: custom_components/
+          retention-days: 1
+
       - name: Commit and Push
         run: |
           git add custom_components/*/manifest.json .github/ISSUE_TEMPLATE/*.yml .github/ISSUE_TEMPLATE/*.yaml 2>/dev/null || true
@@ -180,6 +187,12 @@ jobs:
         run: |
           git pull --rebase origin ${{ github.ref_name }}
 
+      - name: Download Updated Components
+        uses: actions/download-artifact@v8
+        with:
+          name: updated-components
+          path: custom_components/
+
       - name: 📦 Zip Component
         run: |
           cd custom_components/pepper
@@ -201,13 +214,13 @@ jobs:
         run: |
           # Find existing draft release
           release_id=$(gh api "repos/$REPO/releases" --jq '.[] | select(.tag_name=="'$TAG'" or .name=="Release '$VERSION'") | select(.draft==true) | .id')
-          
+
           # Set prerelease argument
           prerelease_arg=""
           if [ "$IS_PRERELEASE" = "true" ]; then
             prerelease_arg="--prerelease"
           fi
-          
+
           if [ -n "$release_id" ]; then
             # Update the existing draft release to publish it
             gh api -X PATCH "repos/$REPO/releases/$release_id" \
@@ -217,7 +230,7 @@ jobs:
               -f body_path="release_body.md" \
               -F draft=false \
               -F prerelease=$( [ "$IS_PRERELEASE" = "true" ] && echo "true" || echo "false" )
-              
+
             # Upload the assets to the published release
             gh release upload "$TAG" pepper.zip --clobber
           else
@@ -229,7 +242,7 @@ jobs:
               $prerelease_arg \
               pepper.zip
           fi
- 
+
       - name: Post-Release Dev Bump
         run: |
           git config --global user.name "github-actions[bot]"
@@ -246,6 +259,11 @@ jobs:
             git commit -am "chore(dev): bump to $NEW_DEV [skip ci]"
             git push origin HEAD:${{ github.ref_name }} || (git pull --rebase origin ${{ github.ref_name }} && git push origin HEAD:${{ github.ref_name }})
           fi
+
+      - name: Delete Component Artifact
+        uses: actions/delete-artifact@v4
+        with:
+          name: updated-components
 
   cleanup-release:
     needs: [versioning, sync-version, gh-release]

@@ -41,10 +41,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     username = entry.options.get(CONF_USERNAME, entry.data.get(CONF_USERNAME))
     password = entry.options.get(CONF_PASSWORD, entry.data.get(CONF_PASSWORD))
 
+    cookies = entry.data.get("cookies")
+    xsrf_token = entry.data.get("xsrf_token")
+    headers = entry.data.get("headers")
+
+    if username != entry.data.get(CONF_USERNAME):
+        cookies = None
+        xsrf_token = None
+        headers = None
+
+    _LOGGER.debug(
+        "Setting up entry %s. Username: %s. Cookies: %s. Has Token: %s. Has Headers: %s",
+        entry.entry_id,
+        username,
+        len(cookies) if cookies else None,
+        xsrf_token is not None,
+        headers is not None,
+    )
+
     api = PepperAPI(
         platform=platform,
         username=username,
         password=password,
+        cookies=cookies,
+        xsrf_token=xsrf_token,
+        headers=headers,
     )
 
     limit = entry.options.get(CONF_LIMIT, entry.data.get(CONF_LIMIT, DEFAULT_LIMIT))
