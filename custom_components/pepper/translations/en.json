@@ -3,14 +3,16 @@
     "step": {
       "user": {
         "title": "Configure Pepper Deal Platform",
-        "description": "Select your preferred Pepper platform and configure sorting and sync settings.",
+        "description": "Select your preferred Pepper platform and configure sorting and sync settings. Providing username and password is optional. Without login, personalized features (like Karma and Notification sensors) will not be available.",
         "data": {
           "platform": "Pepper Platform Site",
           "sort_mode": "Deals Sort Mode",
           "scan_interval": "Update Interval (minutes)",
           "keywords": "Tracked Keywords (comma-separated)",
           "temp_threshold": "Temperature Threshold for Alerts",
-          "limit": "Max Deals to Fetch"
+          "limit": "Max Deals to Fetch",
+          "username": "Username (Optional)",
+          "password": "Password (Optional)"
         }
       }
     },

@@ -3,14 +3,16 @@
     "step": {
       "user": {
         "title": "Pepper Deal-Plattform konfigurieren",
-        "description": "Wähle deine bevorzugte Pepper-Plattform und konfiguriere die Sortierung sowie das Abfrageintervall.",
+        "description": "Wähle deine bevorzugte Pepper-Plattform und konfiguriere die Sortierung sowie das Abfrageintervall. Die Angabe von Benutzername und Passwort ist optional. Ohne Anmeldung stehen personalisierte Features (wie Karma- und Benachrichtigungs-Sensoren) nicht zur Verfügung.",
         "data": {
           "platform": "Pepper Portal",
           "sort_mode": "Deal-Sortierung",
           "scan_interval": "Abfrage-Intervall (Minuten)",
           "keywords": "Schlagwörter für Alarme (kommagetrennt)",
           "temp_threshold": "Temperatur-Grenzwert für Alarme",
-          "limit": "Maximal abzurufende Deals"
+          "limit": "Maximal abzurufende Deals",
+          "username": "Benutzername (Optional)",
+          "password": "Passwort (Optional)"
         }
       }
     },

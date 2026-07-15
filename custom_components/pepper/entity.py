@@ -28,6 +28,7 @@ class PepperEntity(CoordinatorEntity[PepperDataUpdateCoordinator]):
             identifiers={(DOMAIN, entry_id)},
             name=platform_name,
             manufacturer="Pepper Group",
+            model="Pepper Platform",
             entry_type=DeviceEntryType.SERVICE,
             configuration_url=f"https://www.{platform}",
         )

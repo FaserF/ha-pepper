@@ -1,12 +1,20 @@
 """The Pepper integration."""
 
+import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_SCAN_INTERVAL, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+)
 
 from .const import (
+    CONF_PASSWORD,
     CONF_PLATFORM,
     CONF_SORT_MODE,
+    CONF_USERNAME,
     DEFAULT_PLATFORM,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SORT_MODE,
@@ -28,7 +36,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     )
 
-    api = PepperAPI(platform=platform)
+    username = entry.options.get(CONF_USERNAME, entry.data.get(CONF_USERNAME))
+    password = entry.options.get(CONF_PASSWORD, entry.data.get(CONF_PASSWORD))
+
+    api = PepperAPI(
+        platform=platform,
+        username=username,
+        password=password,
+    )
 
     coordinator = PepperDataUpdateCoordinator(
         hass,
@@ -43,6 +58,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Register the search service/action
+    async def async_search_deals_service(call: ServiceCall) -> ServiceResponse:
+        """Search deals service."""
+        query = call.data["query"]
+        deals = await hass.async_add_executor_job(api.search_deals, query)
+        return {"deals": deals}
+
+    hass.services.async_register(
+        DOMAIN,
+        "search",
+        async_search_deals_service,
+        schema=vol.Schema(
+            {
+                vol.Required("query"): str,
+            }
+        ),
+        supports_response=SupportsResponse.ONLY,
+    )
 
     # Register listener for options updates
     entry.async_on_unload(entry.add_update_listener(async_update_listener))

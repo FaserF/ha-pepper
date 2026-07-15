@@ -120,6 +120,59 @@ Passing an empty filter returns the default newest deals:
 
 ---
 
+### 3. User Authentication (`login`)
+
+Authentication is completed via the `login` GraphQL mutation, which updates the session cookies on the Pepper platform.
+
+```graphql
+mutation login($input: LoginInput!) {
+  login(input: $input) {
+    user {
+      userId
+      username
+    }
+  }
+}
+```
+
+#### Variables
+```json
+{
+  "input": {
+    "identity": "<username>",
+    "password": "<password>"
+  }
+}
+```
+
+---
+
+### 4. Fetching Logged-in User Profile (`me`)
+
+To retrieve the authenticated user's profile statistics and notifications, query the `me` field.
+
+```graphql
+query getMe {
+  me {
+    userId
+    username
+    karma
+    notificationUnreadCount
+    unreadConversationsCount
+  }
+}
+```
+
+---
+
+### 5. Filtering Deals (Freebies, Vouchers & Coupon Codes)
+
+The `ThreadFilter` input allows filtering the deals/threads feed:
+- **Freebies (Gratis):** Pass `"isFreebies": true` in the filter variables.
+- **Vouchers (Gutscheine):** Pass `"isVoucher": true` in the filter variables, and request the `couponCode` field to fetch active voucher/discount codes.
+
+---
+
 ## 🖼️ Static Image CDN Resolution
 
 Images are resolved dynamically using the `mainImage` subfields. The image URL is constructed as:

@@ -29,16 +29,33 @@ A powerful, robust Home Assistant integration for **Pepper Deal Platforms** (MyD
   | :--- | :--- | :---: | :--- |
   | **MyDealz** (Germany) | `mydealz.de` | :white_check_mark: | Primary development platform. Tested & working. |
   | **HotUKDeals** (United Kingdom) | `hotukdeals.com` | :white_check_mark: | Verified & working. |
-  | **Chollometro** (Spain) | `chollometro.com` | :white_check_mark: | Verified & working. |
+  | **Chollometro (Spain)** | `chollometro.com` | :white_check_mark: | Verified & working. |
   | **Dealabs** (France) | `dealabs.com` | :white_check_mark: | Verified & working. |
   | **Pepper.pl** (Poland) | `pepper.pl` | :white_check_mark: | Verified & working. |
   | **Preisjäger** (Austria) | `preisjaeger.at` | :white_check_mark: | Verified & working. |
-  | **Pepper.it** (Italy) | `pepper.it` | :x: | Uses different CSRF/authentication stack. |
-  | **Pepper.ru** (Russia) | `pepper.ru` | :x: | Uses different cookie & session mechanisms. |
-  | **Pelando** (Brazil) | `pelando.com.br` | :x: | Runs on a different non-GraphQL legacy engine. |
-  | **Desidime** (India) | `desidime.com` | :x: | Runs on a different non-GraphQL legacy engine. |
-  | **Pepper.nl** (Netherlands) | `pepper.nl` | :x: | Platform shutdown (no valid DNS records). |
+  | **Pepper.it** (Italy) | :x: | Uses different CSRF/authentication stack. |
+  | **Pepper.ru** (Russia) | :x: | Uses different cookie & session mechanisms. |
+  | **Pelando** (Brazil) | :x: | Runs on a different non-GraphQL legacy engine. |
+  | **Desidime** (India) | :x: | Runs on a different non-GraphQL legacy engine. |
+  | **Pepper.nl** (Netherlands) | :x: | Platform shutdown (no valid DNS records). |
 
+- 🔐 **Optional Authentication:**
+  - Login optionally during setup to unlock personalized sensors.
+  - Keeps session cookies persistent across polls.
+- 🎁 **Freebies Sensor (`sensor.pepper_freebies`):**
+  - Monitor free items / gratis deals.
+  - State = title of the top freebie.
+  - Attributes = list of active freebies.
+- 🎫 **Vouchers Sensor (`sensor.pepper_vouchers`):**
+  - Monitor active voucher codes (e.g. for coupon codes).
+  - State = count of active vouchers.
+  - Attributes = list of vouchers with `coupon_code` field.
+  - *Disabled by default.*
+- 👤 **Personalized User Sensors:**
+  - **User Karma (`sensor.pepper_user_karma`):** Tracks your contribution points.
+  - **User Notifications (`sensor.pepper_user_notifications`):** Unread alarm/reply count.
+  - **User Conversations (`sensor.pepper_user_conversations`):** Unread inbox messages count.
+  - *Only created if credentials are provided. Disabled by default.*
 - 🔔 **Keyword Alert Sensor (`sensor.pepper_keyword_alerts`):**
   - Monitor custom keywords (e.g., `playstation, switch, rtx`).
   - State = count of matching active deals.
@@ -103,6 +120,23 @@ Adding the Pepper platform is done entirely in the UI.
    - **Scan Interval:** Minutes to wait between updates (default: `30` minutes).
    - **Keywords:** (Optional) Comma-separated list of keywords to track.
    - **Temperature Threshold:** (Optional) Min heat to trigger the High Temp binary sensor (default: `500`).
+   - **Username:** (Optional) Your Pepper account username/email.
+   - **Password:** (Optional) Your Pepper account password.
+
+---
+
+## 🛠️ Services (Actions)
+
+The integration registers a service/action to programmatically search for deals:
+
+### `pepper.search`
+Search for deals on the selected platform. This returns the list of matching deals.
+
+**Service Data:**
+- `query` (string, required): The keyword to search for (e.g. `rtx 5080`).
+
+**Response Data:**
+- `deals`: A list of matching deals, each containing `title` and `url`.
 
 ---
 

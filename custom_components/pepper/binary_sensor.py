@@ -57,7 +57,7 @@ class PepperHighTempAlertSensor(PepperEntity, BinarySensorEntity):
     def _get_alert_deals(self) -> list[dict[str, Any]]:
         """Get list of deals exceeding the threshold."""
         threshold = self._get_threshold()
-        deals = self.coordinator.data or []
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
         alerts = []
         for deal in deals:
             temp = deal.get("temperature")

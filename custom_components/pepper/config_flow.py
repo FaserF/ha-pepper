@@ -11,9 +11,11 @@ from homeassistant.core import callback
 from .const import (
     CONF_KEYWORDS,
     CONF_LIMIT,
+    CONF_PASSWORD,
     CONF_PLATFORM,
     CONF_SORT_MODE,
     CONF_TEMP_THRESHOLD,
+    CONF_USERNAME,
     DEFAULT_LIMIT,
     DEFAULT_PLATFORM,
     DEFAULT_SCAN_INTERVAL,
@@ -39,7 +41,11 @@ class PepperConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignor
         if user_input is not None:
             # Validate connection by doing a test fetch on the selected platform
             try:
-                api = PepperAPI(platform=user_input[CONF_PLATFORM])
+                api = PepperAPI(
+                    platform=user_input[CONF_PLATFORM],
+                    username=user_input.get(CONF_USERNAME),
+                    password=user_input.get(CONF_PASSWORD),
+                )
                 await self.hass.async_add_executor_job(api.fetch_session)
 
                 name = PLATFORMS_MAP.get(
@@ -68,6 +74,8 @@ class PepperConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignor
                 vol.Optional(CONF_LIMIT, default=DEFAULT_LIMIT): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=100)
                 ),
+                vol.Optional(CONF_USERNAME, default=""): vol.Coerce(str),
+                vol.Optional(CONF_PASSWORD, default=""): vol.Coerce(str),
             }
         )
 
@@ -87,7 +95,7 @@ class PepperOptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        super().__init__(config_entry)
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -136,6 +144,18 @@ class PepperOptionsFlowHandler(config_entries.OptionsFlow):
                         self.config_entry.data.get(CONF_LIMIT, DEFAULT_LIMIT),
                     ),
                 ): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),
+                vol.Optional(
+                    CONF_USERNAME,
+                    default=self.config_entry.options.get(
+                        CONF_USERNAME, self.config_entry.data.get(CONF_USERNAME, "")
+                    ),
+                ): vol.Coerce(str),
+                vol.Optional(
+                    CONF_PASSWORD,
+                    default=self.config_entry.options.get(
+                        CONF_PASSWORD, self.config_entry.data.get(CONF_PASSWORD, "")
+                    ),
+                ): vol.Coerce(str),
             }
         )
 

@@ -50,9 +50,16 @@ def get_random_headers() -> dict[str, str]:
 class PepperAPI:
     """Client for Pepper GraphQL API."""
 
-    def __init__(self, platform: str = "mydealz.de") -> None:
+    def __init__(
+        self,
+        platform: str = "mydealz.de",
+        username: str | None = None,
+        password: str | None = None,
+    ) -> None:
         """Initialize the client."""
         self.platform = platform
+        self.username = username
+        self.password = password
         self.base_url = f"https://www.{platform}"
         self.graphql_url = f"{self.base_url}/graphql"
         self.image_host = f"https://static.{platform}"
@@ -63,6 +70,7 @@ class PepperAPI:
         )
         self.xsrf_token: str | None = None
         self._headers = get_random_headers()
+        self._logging_in = False
 
     def fetch_session(self) -> None:
         """Fetch the home page to get session cookies and XSRF token."""
@@ -91,6 +99,17 @@ class PepperAPI:
 
         if not self.xsrf_token:
             raise ValueError("XSRF token (xsrf_t) not found in cookies")
+
+        # Perform login if credentials are set
+        if self.username and self.password and not self._logging_in:
+            try:
+                self._logging_in = True
+                self.login()
+            except Exception as err:
+                _LOGGER.error("Failed to log in during session fetch: %s", err)
+                raise ConnectionError(f"Login failed: {err}") from err
+            finally:
+                self._logging_in = False
 
     def _query(self, query_str: str, variables: dict[str, Any]) -> dict[str, Any]:
         """Perform a GraphQL query."""
@@ -149,9 +168,61 @@ class PepperAPI:
 
         return res_data.get("data", {})
 
-    def get_deals(self, sort_mode: str = "hot") -> list[dict[str, Any]]:
+    def login(self) -> None:
+        """Log in to the Pepper platform."""
+        if not self.username or not self.password:
+            return
+
+        _LOGGER.debug("Logging in to %s with username %s", self.platform, self.username)
+        query = """
+        mutation login($input: LoginInput!) {
+          login(input: $input) {
+            user {
+              userId
+              username
+            }
+          }
+        }
+        """
+        variables = {
+            "input": {
+                "identity": self.username,
+                "password": self.password,
+            }
+        }
+        self._query(query, variables)
+
+    def get_user_profile(self) -> dict[str, Any]:
+        """Fetch the logged-in user profile details."""
+        query = """
+        query getMe {
+          me {
+            userId
+            username
+            karma
+            notificationUnreadCount
+            unreadConversationsCount
+          }
+        }
+        """
+        data = self._query(query, {})
+        return data.get("me") or {}
+
+    def get_deals(
+        self,
+        sort_mode: str = "hot",
+        is_freebies: bool = False,
+        is_voucher: bool = False,
+    ) -> list[dict[str, Any]]:
         """Fetch deals. If sort_mode is 'hot', fetches via hottestWidget query for actual hottest deals of the day."""
-        variables: dict[str, Any]
+        filter_vars: dict[str, Any] = {}
+        if is_freebies:
+            filter_vars["isFreebies"] = True
+        if is_voucher:
+            filter_vars["isVoucher"] = True
+
+        variables = {"filter": filter_vars}
+
         if sort_mode == "hot":
             query = """
             query HottestWidget($filter: ThreadFilter!) {
@@ -165,6 +236,7 @@ class PepperAPI:
                   publishedAt
                   createdAt
                   description
+                  couponCode
                   merchant {
                     merchantName
                   }
@@ -176,7 +248,6 @@ class PepperAPI:
               }
             }
             """
-            variables = {"filter": {}}
             data = self._query(query, variables)
             threads = data.get("hottestWidget", {}).get("threads", []) or []
         else:
@@ -191,6 +262,7 @@ class PepperAPI:
                 publishedAt
                 createdAt
                 description
+                couponCode
                 merchant {
                   merchantName
                 }
@@ -201,7 +273,6 @@ class PepperAPI:
               }
             }
             """
-            variables = {"filter": {}}
             data = self._query(query, variables)
             threads = data.get("threads", []) or []
 
@@ -231,9 +302,51 @@ class PepperAPI:
                 "published_at": t.get("publishedAt"),
                 "created_at": t.get("createdAt"),
                 "description": t.get("description"),
+                "coupon_code": t.get("couponCode"),
                 "merchant": merchant_name,
                 "image_url": image_url,
             }
             deals.append(deal)
+
+        return deals
+
+    def search_deals(self, query: str) -> list[dict[str, Any]]:
+        """Search deals by scraping the HTML search results page."""
+        _LOGGER.debug("Searching deals for %s on %s", query, self.platform)
+        import html as html_parser
+        import re
+        import urllib.parse
+
+        encoded_query = urllib.parse.quote_plus(query)
+        search_url = f"{self.base_url}/search?q={encoded_query}"
+
+        headers = self._headers.copy()
+        req = urllib.request.Request(search_url, headers=headers)
+
+        try:
+            with self._opener.open(req, timeout=10) as response:
+                html_content = response.read().decode("utf-8")
+        except Exception as err:
+            _LOGGER.error("Failed to fetch search page: %s", err)
+            raise ConnectionError(f"Search page request failed: {err}") from err
+
+        # Match class and title inside <a tag
+        a_tags = re.findall(r'<a[^>]+class="[^"]*cept-tt[^"]*"[^>]*>', html_content)
+        if not a_tags:
+            a_tags = re.findall(
+                r'<a[^>]+class="[^"]*js-thread-title[^"]*"[^>]*>', html_content
+            )
+
+        deals = []
+        for tag in a_tags:
+            title_match = re.search(r'title="([^"]+)"', tag)
+            href_match = re.search(r'href="([^"]+)"', tag)
+            if title_match and href_match:
+                deals.append(
+                    {
+                        "title": html_parser.unescape(title_match.group(1)).strip(),
+                        "url": href_match.group(1).strip(),
+                    }
+                )
 
         return deals
