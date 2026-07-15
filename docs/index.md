@@ -13,4 +13,4 @@ This integration brings deal data from **Pepper Group platforms** (such as MyDea
 
 ## Getting Started
 - See [Installation](installation.md) and [Configuration](configuration.md) to set it up.
-- For technical details about the undocumented API, see the [Pepper GraphQL API Documentation](../pepper_api.md).
+- For technical details about the undocumented API, see the [Pepper GraphQL API Documentation](pepper_api.md).

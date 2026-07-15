@@ -278,7 +278,7 @@ action:
 
 ## 📖 API Documentation
 
-For in-depth details on the private GraphQL endpoints, query schemas, variables, static image CDN patterns, and anti-ban mechanics, refer to the [Pepper Group API Documentation](pepper_api.md).
+For in-depth details on the private GraphQL endpoints, query schemas, variables, static image CDN patterns, and anti-ban mechanics, refer to the [Pepper Group API Documentation](docs/pepper_api.md).
 
 ---
 
