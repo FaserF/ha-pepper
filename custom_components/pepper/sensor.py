@@ -47,6 +47,14 @@ async def async_setup_entry(
         PepperMostSharedDealSensor(coordinator, entry),
         PepperBestPriceSavingSensor(coordinator, entry),
         PepperBestPriceSavingPercentSensor(coordinator, entry),
+        PepperAverageSavingPercentSensor(coordinator, entry),
+        PepperAveragePriceSensor(coordinator, entry),
+        PepperDiscussionCountSensor(coordinator, entry),
+        PepperVoucherCountSensor(coordinator, entry),
+        PepperExpiredDealsPercentageSensor(coordinator, entry),
+        PepperTopSubmitterSensor(coordinator, entry),
+        PepperTopGroupSensor(coordinator, entry),
+        PepperHottestDealTitleSensor(coordinator, entry),
     ]
 
     if coordinator.api.username:
@@ -56,6 +64,8 @@ async def async_setup_entry(
                 PepperUserCommentCountSensor(coordinator, entry),
                 PepperUserAccountAgeDaysSensor(coordinator, entry),
                 PepperUserBadgeCountSensor(coordinator, entry),
+                PepperUserEmailSensor(coordinator, entry),
+                PepperUserAvatarSensor(coordinator, entry),
             ]
         )
 
@@ -999,4 +1009,352 @@ class PepperUserBadgeCountSensor(PepperEntity, SensorEntity):
         profile = self.coordinator.data.get("profile") if self.coordinator.data else {}
         if profile:
             return {"badges": profile.get("badges") or []}
+        return {}
+
+
+class PepperAverageSavingPercentSensor(PepperEntity, SensorEntity):
+    """Sensor showing the average saving percentage of the deals in the feed."""
+
+    _attr_icon = "mdi:percent"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_average_saving_percent"
+        self._attr_name = "Average Saving Percent"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the average saving percentage."""
+        if not self.coordinator.data:
+            return None
+        deals = self.coordinator.data.get("deals", [])
+        pcts = []
+        for d in deals:
+            p = d.get("price")
+            nbp = d.get("next_best_price")
+            if (
+                p is not None
+                and nbp is not None
+                and isinstance(p, (int, float))
+                and isinstance(nbp, (int, float))
+                and nbp > 0
+            ):
+                pct = ((nbp - p) / nbp) * 100
+                if pct > 0:
+                    pcts.append(pct)
+        return round(statistics.mean(pcts), 1) if pcts else None
+
+
+class PepperAveragePriceSensor(PepperEntity, SensorEntity):
+    """Sensor showing the average price of the deals in the feed."""
+
+    _attr_icon = "mdi:cash"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_average_price"
+        self._attr_name = "Average Price"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the average price."""
+        if not self.coordinator.data:
+            return None
+        deals = self.coordinator.data.get("deals", [])
+        prices = [
+            d["price"]
+            for d in deals
+            if d.get("price") is not None and isinstance(d["price"], (int, float))
+        ]
+        return round(statistics.mean(prices), 2) if prices else None
+
+
+class PepperDiscussionCountSensor(PepperEntity, SensorEntity):
+    """Sensor showing the number of discussion threads in the feed."""
+
+    _attr_icon = "mdi:forum"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_discussion_count"
+        self._attr_name = "Discussion Count"
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of discussions."""
+        if not self.coordinator.data:
+            return 0
+        deals = self.coordinator.data.get("deals", [])
+        return len([d for d in deals if d.get("type") == "Discussion"])
+
+
+class PepperVoucherCountSensor(PepperEntity, SensorEntity):
+    """Sensor showing the number of voucher threads in the main feed."""
+
+    _attr_icon = "mdi:ticket-percent"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_voucher_count"
+        self._attr_name = "Voucher Count"
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of vouchers."""
+        if not self.coordinator.data:
+            return 0
+        deals = self.coordinator.data.get("deals", [])
+        return len([d for d in deals if d.get("type") == "Voucher"])
+
+
+class PepperExpiredDealsPercentageSensor(PepperEntity, SensorEntity):
+    """Sensor showing the percentage of expired deals in the feed."""
+
+    _attr_icon = "mdi:percent"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_expired_deals_percentage"
+        self._attr_name = "Expired Deals Percentage"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the percentage of expired deals."""
+        if not self.coordinator.data:
+            return None
+        deals = self.coordinator.data.get("deals", [])
+        if not deals:
+            return 0.0
+        expired = len([d for d in deals if d.get("is_expired")])
+        return round((expired / len(deals)) * 100, 1)
+
+
+class PepperTopSubmitterSensor(PepperEntity, SensorEntity):
+    """Sensor showing the top submitter in the feed."""
+
+    _attr_icon = "mdi:account-star"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_top_submitter"
+        self._attr_name = "Top Submitter"
+
+    def _get_submitter_stats(self) -> dict[str, int]:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        stats: dict[str, int] = {}
+        for d in deals:
+            sub = d.get("submitter")
+            if sub:
+                stats[sub] = stats.get(sub, 0) + 1
+        return stats
+
+    @property
+    def native_value(self) -> str | None:
+        """Return top submitter username."""
+        stats = self._get_submitter_stats()
+        if not stats:
+            return None
+        return max(stats, key=lambda k: stats[k])
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return submitter statistics."""
+        stats = self._get_submitter_stats()
+        top = self.native_value
+        return {
+            "top_submitter": top,
+            "top_submitter_count": stats.get(top or "", 0),
+            "submitter_counts": stats,
+        }
+
+
+class PepperTopGroupSensor(PepperEntity, SensorEntity):
+    """Sensor showing the most frequent category/group in the feed."""
+
+    _attr_icon = "mdi:folder-star"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_top_group"
+        self._attr_name = "Top Group"
+
+    def _get_group_stats(self) -> dict[str, int]:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        stats: dict[str, int] = {}
+        for d in deals:
+            for g in d.get("groups") or []:
+                stats[g] = stats.get(g, 0) + 1
+        return stats
+
+    @property
+    def native_value(self) -> str | None:
+        """Return top group path."""
+        stats = self._get_group_stats()
+        if not stats:
+            return None
+        return max(stats, key=lambda k: stats[k])
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return group statistics."""
+        stats = self._get_group_stats()
+        top = self.native_value
+        return {
+            "top_group": top,
+            "top_group_count": stats.get(top or "", 0),
+            "group_counts": stats,
+        }
+
+
+class PepperHottestDealTitleSensor(PepperEntity, SensorEntity):
+    """Sensor showing the title of the hottest deal in the feed."""
+
+    _attr_icon = "mdi:fire-circle"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_hottest_deal_title"
+        self._attr_name = "Hottest Deal Title"
+
+    def _get_hottest_deal(self) -> dict[str, Any] | None:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        temps = [
+            d
+            for d in deals
+            if d.get("temperature") is not None
+            and isinstance(d["temperature"], (int, float))
+        ]
+        if not temps:
+            return None
+        return max(temps, key=lambda d: d["temperature"])
+
+    @property
+    def native_value(self) -> str | None:
+        """Return title of hottest deal."""
+        deal = self._get_hottest_deal()
+        return deal.get("title") if deal else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return deal details."""
+        deal = self._get_hottest_deal()
+        return {"deal": deal} if deal else {}
+
+
+class PepperUserEmailSensor(PepperEntity, SensorEntity):
+    """Sensor showing the user's email."""
+
+    _attr_icon = "mdi:email"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_user_email"
+        self._attr_name = "User Email"
+
+    @property
+    def native_value(self) -> str | None:
+        """Return user email."""
+        if not self.coordinator.data:
+            return None
+        profile = self.coordinator.data.get("profile")
+        if profile:
+            return profile.get("email")
+        return None
+
+
+class PepperUserAvatarSensor(PepperEntity, SensorEntity):
+    """Sensor showing the user's avatar URL."""
+
+    _attr_icon = "mdi:account-circle"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_user_avatar"
+        self._attr_name = "User Avatar"
+
+    @property
+    def native_value(self) -> str | None:
+        """Return user avatar URL."""
+        if not self.coordinator.data:
+            return None
+        profile = self.coordinator.data.get("profile")
+        if profile and profile.get("avatar"):
+            avatar = profile["avatar"]
+            if avatar.get("path") and avatar.get("name"):
+                return f"{self.coordinator.api.image_host}/{avatar['path']}/{avatar['name']}/re/100x100/qt/60/{avatar['name']}.jpg"
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return avatar components."""
+        if not self.coordinator.data:
+            return {}
+        profile = self.coordinator.data.get("profile")
+        if profile and profile.get("avatar"):
+            return {"avatar": profile["avatar"]}
         return {}

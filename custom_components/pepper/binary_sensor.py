@@ -29,6 +29,9 @@ async def async_setup_entry(
         PepperFreebieAvailableSensor(coordinator, entry),
         PepperVoucherAvailableSensor(coordinator, entry),
         PepperNewDealAvailableSensor(coordinator, entry),
+        PepperExpirableDealAvailableSensor(coordinator, entry),
+        PepperKeywordMatchAvailableSensor(coordinator, entry),
+        PepperSuperHotDealAvailableSensor(coordinator, entry),
     ]
 
     async_add_entities(entities, True)
@@ -231,3 +234,100 @@ class PepperNewDealAvailableSensor(PepperEntity, BinarySensorEntity):
         now_ts = datetime.now(tz=UTC).timestamp()
         cutoff = now_ts - 3600
         return any(d.get("published_at") and d["published_at"] >= cutoff for d in deals)
+
+
+class PepperExpirableDealAvailableSensor(PepperEntity, BinarySensorEntity):
+    """Binary sensor that turns ON if any active (non-expired) deal in the feed has an expiration date."""
+
+    _attr_icon = "mdi:calendar-clock"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_expirable_deal_available"
+        self._attr_name = "Expirable Deal Available"
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if any expirable non-expired deal exists."""
+        if not self.coordinator.data:
+            return False
+        deals = self.coordinator.data.get("deals", [])
+        return any(d.get("expirable") and not d.get("is_expired") for d in deals)
+
+
+class PepperKeywordMatchAvailableSensor(PepperEntity, BinarySensorEntity):
+    """Binary sensor that turns ON if any active (non-expired) deal matches the configured keywords."""
+
+    _attr_icon = "mdi:bell-alert"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_keyword_match_available"
+        self._attr_name = "Keyword Match Available"
+
+    def _get_keywords(self) -> list[str]:
+        """Get configured keywords."""
+        raw = self._entry.options.get(
+            CONF_KEYWORDS, self._entry.data.get(CONF_KEYWORDS, "")
+        )
+        if not raw:
+            return []
+        return [k.strip().lower() for k in raw.split(",") if k.strip()]
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if any active deal matches the keywords."""
+        keywords = self._get_keywords()
+        if not keywords or not self.coordinator.data:
+            return False
+        deals = self.coordinator.data.get("deals", [])
+        for deal in deals:
+            if deal.get("is_expired"):
+                continue
+            title = (deal.get("title") or "").lower()
+            description = (deal.get("description") or "").lower()
+            if any(k in title or k in description for k in keywords):
+                return True
+        return False
+
+
+class PepperSuperHotDealAvailableSensor(PepperEntity, BinarySensorEntity):
+    """Binary sensor that turns ON if any deal temperature exceeds 500°."""
+
+    _attr_icon = "mdi:fire"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_super_hot_deal_available"
+        self._attr_name = "Super Hot Deal Available"
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if any deal has temperature >= 500."""
+        if not self.coordinator.data:
+            return False
+        deals = self.coordinator.data.get("deals", [])
+        for d in deals:
+            temp = d.get("temperature")
+            if temp is not None and isinstance(temp, (int, float)) and temp >= 500:
+                return True
+        return False

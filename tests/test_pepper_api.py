@@ -1064,3 +1064,221 @@ def test_savings_percent_logic() -> None:
     pct = _savings_percent_logic(data)
     assert len(pct) == 1
     assert pct[0][0] == 50.0
+
+
+def test_average_saving_percent_logic() -> None:
+    """Test average saving percent logic."""
+    data = {
+        "deals": [
+            {"price": 10.0, "next_best_price": 20.0},  # 50%
+            {"price": 10.0, "next_best_price": 12.5},  # 20%
+        ]
+    }
+    # Calculate inline
+    pcts = []
+    for d in data["deals"]:
+        p = d["price"]
+        nbp = d["next_best_price"]
+        pcts.append(((nbp - p) / nbp) * 100)
+    avg = round(statistics.mean(pcts), 1)
+    assert avg == 35.0
+
+
+def test_average_price_logic() -> None:
+    """Test average price logic."""
+    data = {
+        "deals": [
+            {"price": 10.0},
+            {"price": 20.0},
+        ]
+    }
+    prices = [d["price"] for d in data["deals"]]
+    avg = round(statistics.mean(prices), 2)
+    assert avg == 15.0
+
+
+def test_discussion_count_logic() -> None:
+    """Test discussion count logic."""
+    data = {
+        "deals": [
+            {"type": "Discussion"},
+            {"type": "Deal"},
+            {"type": "Discussion"},
+        ]
+    }
+    count = len([d for d in data["deals"] if d["type"] == "Discussion"])
+    assert count == 2
+
+
+def test_voucher_count_logic() -> None:
+    """Test voucher count logic."""
+    data = {
+        "deals": [
+            {"type": "Voucher"},
+            {"type": "Deal"},
+        ]
+    }
+    count = len([d for d in data["deals"] if d["type"] == "Voucher"])
+    assert count == 1
+
+
+def test_expired_deals_percentage_logic() -> None:
+    """Test expired deals percentage logic."""
+    data = {
+        "deals": [
+            {"is_expired": True},
+            {"is_expired": False},
+            {"is_expired": False},
+            {"is_expired": False},
+        ]
+    }
+    expired = len([d for d in data["deals"] if d["is_expired"]])
+    pct = round((expired / len(data["deals"])) * 100, 1)
+    assert pct == 25.0
+
+
+def test_top_submitter_logic() -> None:
+    """Test top submitter logic."""
+    data = {
+        "deals": [
+            {"submitter": "user1"},
+            {"submitter": "user2"},
+            {"submitter": "user1"},
+        ]
+    }
+    stats = {}
+    for d in data["deals"]:
+        sub = d["submitter"]
+        stats[sub] = stats.get(sub, 0) + 1
+    top = max(stats, key=lambda k: stats[k])
+    assert top == "user1"
+
+
+def test_top_group_logic() -> None:
+    """Test top group logic."""
+    data = {
+        "deals": [
+            {"groups": ["elec", "gaming"]},
+            {"groups": ["elec"]},
+        ]
+    }
+    stats = {}
+    for d in data["deals"]:
+        for g in d.get("groups") or []:
+            stats[g] = stats.get(g, 0) + 1
+    top = max(stats, key=lambda k: stats[k])
+    assert top == "elec"
+
+
+def test_hottest_deal_title_logic() -> None:
+    """Test hottest deal title logic."""
+    data = {
+        "deals": [
+            {"title": "Deal 1", "temperature": 100},
+            {"title": "Deal 2", "temperature": 900},
+        ]
+    }
+    temps = [d for d in data["deals"] if d.get("temperature") is not None]
+    hottest = max(temps, key=lambda d: d["temperature"])
+    assert hottest["title"] == "Deal 2"
+
+
+def test_expirable_deal_available_logic() -> None:
+    """Test expirable deal available logic."""
+    data = {
+        "deals": [
+            {"expirable": True, "is_expired": False},
+            {"expirable": True, "is_expired": True},
+        ]
+    }
+    available = any(
+        d.get("expirable") and not d.get("is_expired") for d in data["deals"]
+    )
+    assert available is True
+
+
+def test_keyword_match_available_logic() -> None:
+    """Test keyword match available logic."""
+    data = {
+        "deals": [
+            {"title": "Xbox One Deal", "is_expired": False},
+            {"title": "PlayStation 5", "is_expired": True},
+        ]
+    }
+    keywords = ["xbox"]
+    matched = False
+    for deal in data["deals"]:
+        if deal.get("is_expired"):
+            continue
+        title = deal["title"].lower()
+        if any(k in title for k in keywords):
+            matched = True
+    assert matched is True
+
+
+def test_super_hot_deal_available_logic() -> None:
+    """Test super hot deal available logic."""
+    data = {
+        "deals": [
+            {"temperature": 450},
+            {"temperature": 600},
+        ]
+    }
+    super_hot = any(
+        d.get("temperature") is not None and d["temperature"] >= 500
+        for d in data["deals"]
+    )
+    assert super_hot is True
+
+
+def test_groups_parsing_in_get_deals(api: PepperAPI) -> None:
+    """Test that get_deals correctly extracts and prettifies groups from GraphQL response."""
+    api.xsrf_token = "dummy_token"
+
+    graphql_response = {
+        "data": {
+            "threads": [
+                {
+                    "threadId": "123",
+                    "title": "Test Deal",
+                    "url": "http://test",
+                    "price": 10.0,
+                    "nextBestPrice": 20.0,
+                    "temperature": 100.0,
+                    "publishedAt": 1234567,
+                    "createdAt": 1234567,
+                    "pickedAt": 0,
+                    "description": "desc",
+                    "voucherCode": None,
+                    "type": "Deal",
+                    "status": "Activated",
+                    "isExpired": False,
+                    "expirable": False,
+                    "commentCount": 5,
+                    "shareCount": 2,
+                    "mainImage": None,
+                    "merchant": None,
+                    "user": None,
+                    "groups": [
+                        {
+                            "groupsPath": [
+                                {
+                                    "pageUrl": "https://www.mydealz.de/gruppe/telefon-internet"
+                                },
+                                {"pageUrl": "https://www.mydealz.de/gruppe/dsl-cable"},
+                            ]
+                        }
+                    ],
+                }
+            ]
+        }
+    }
+
+    with patch("urllib.request.OpenerDirector.open") as mock_open:
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(graphql_response).encode("utf-8")
+        mock_open.return_value.__enter__.return_value = mock_response
+
+        deals = api.get_deals(sort_mode="new")
+        assert len(deals) == 1
+        assert deals[0]["groups"] == ["Telefon Internet", "Dsl Cable"]

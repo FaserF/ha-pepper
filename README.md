@@ -76,6 +76,14 @@ A powerful, robust Home Assistant integration for **Pepper Deal Platforms** (MyD
 | 🔗 **Most Shared Deal** | `sensor.pepper_most_shared_deal` | Title of the deal with the most shares. |
 | 💸 **Best Saving (Absolute)** | `sensor.pepper_best_saving_absolute` | Highest absolute saving (next_best_price - price). |
 | 🏷️ **Best Saving (Percent)** | `sensor.pepper_best_saving_percent` | Highest percentage saving. |
+| 📊 **Average Saving Percent** | `sensor.pepper_average_saving_percent` | Average saving percentage across all priced deals in the main feed. |
+| 🪙 **Average Price** | `sensor.pepper_average_price` | Average price of priced deals in the current feed. |
+| 💬 **Discussion Count** | `sensor.pepper_discussion_count` | Count of discussion threads in the feed. |
+| 🎫 **Voucher Count** | `sensor.pepper_voucher_count` | Count of voucher threads in the main feed. |
+| 📉 **Expired Deals Percentage** | `sensor.pepper_expired_deals_percentage` | Percentage of expired deals in the feed. |
+| 🧑‍💻 **Top Submitter** | `sensor.pepper_top_submitter` | Submitter name with the most deals in the current feed. |
+| 📁 **Top Group** | `sensor.pepper_top_group` | Most frequent category/group in the feed. |
+| 🌶️ **Hottest Deal Title** | `sensor.pepper_hottest_deal_title` | Title of the hottest deal in the feed. |
 
 ### User Sensors *(requires login, disabled by default)*
 
@@ -85,6 +93,8 @@ A powerful, robust Home Assistant integration for **Pepper Deal Platforms** (MyD
 | 💬 **User Comment Count** | `sensor.pepper_user_comment_count` | Total number of comments the logged-in user has posted. |
 | 📅 **User Account Age (Days)** | `sensor.pepper_user_account_age_days` | Number of days since the user's account was created. |
 | 🏆 **User Badge Count** | `sensor.pepper_user_badge_count` | Number of badges earned by the user. |
+| ✉️ **User Email** | `sensor.pepper_user_email` | The email address associated with the logged-in account. |
+| 🖼️ **User Avatar** | `sensor.pepper_user_avatar` | The user's avatar URL. |
 
 ---
 
@@ -99,6 +109,9 @@ All binary sensors are **disabled by default**.
 | 🎁 **Freebie Available** | `binary_sensor.pepper_freebie_available` | Any freebies are currently in the feed. |
 | 🎫 **Voucher Available** | `binary_sensor.pepper_voucher_available` | Any vouchers are currently in the feed. |
 | 🆕 **New Deal Available** | `binary_sensor.pepper_new_deal_available` | Any deals were published in the last 60 minutes. |
+| ⌛ **Expirable Deal Available** | `binary_sensor.pepper_expirable_deal_available` | Any active (non-expired) deal has an expiration date. |
+| 🔔 **Keyword Match Available** | `binary_sensor.pepper_keyword_match_available` | Any active (non-expired) deal matches the configured keywords. |
+| 🌶️ **Super Hot Deal Available** | `binary_sensor.pepper_super_hot_deal_available` | Any deal temperature in the feed exceeds 500°. |
 
 ---
 
@@ -132,6 +145,7 @@ Every deal object in sensor attributes includes the following fields:
 | `submitter` | string | Username of the deal submitter |
 | `submitter_id` | string | User ID of the deal submitter |
 | `image_url` | string | Deal image URL (CDN resolved) |
+| `groups` | list[string] | List of categories/groups the deal belongs to |
 
 ---
 

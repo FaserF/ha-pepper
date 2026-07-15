@@ -292,6 +292,11 @@ class PepperAPI:
                     userId
                     username
                   }
+                  groups {
+                    groupsPath {
+                      pageUrl
+                    }
+                  }
         """
 
         if sort_mode == "hot":
@@ -332,6 +337,18 @@ class PepperAPI:
             merchant = t.get("merchant") or {}
             user = t.get("user") or {}
 
+            groups = t.get("groups") or []
+            group_list = []
+            for g in groups:
+                for gp in g.get("groupsPath") or []:
+                    url = gp.get("pageUrl")
+                    if url:
+                        slug = url.rstrip("/").split("/")[-1]
+                        if slug:
+                            prettified_name = slug.replace("-", " ").title()
+                            if prettified_name not in group_list:
+                                group_list.append(prettified_name)
+
             deal = {
                 "id": t.get("threadId"),
                 "title": t.get("title"),
@@ -357,6 +374,7 @@ class PepperAPI:
                 "submitter_id": user.get("userId"),
                 "submitter": user.get("username"),
                 "image_url": image_url,
+                "groups": group_list,
             }
             deals.append(deal)
 
