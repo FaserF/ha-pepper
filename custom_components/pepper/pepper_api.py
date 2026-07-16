@@ -74,6 +74,8 @@ class PepperAPI:
         self.xsrf_token = xsrf_token
         self._headers = headers if headers else get_random_headers()
         self._logging_in = False
+        # True once we've successfully done a full login within this process lifetime
+        self._session_authenticated = bool(cookies)
 
     def dump_session_cookies(self) -> list[dict[str, Any]]:
         """Dump session cookies to list of dicts for serialization."""
@@ -127,9 +129,13 @@ class PepperAPI:
 
     def _update_xsrf_token_from_cookies(self) -> None:
         """Extract the current xsrf_t token from the cookie jar."""
+        import urllib.parse
+
         for cookie in self._cookie_jar:
             if cookie.name == "xsrf_t" and cookie.value is not None:
-                self.xsrf_token = cookie.value.replace('"', "")
+                # Unquote to convert %22 back to " before replacing
+                decoded_val = urllib.parse.unquote(cookie.value)
+                self.xsrf_token = decoded_val.replace('"', "")
                 break
 
     def _get_opener(self) -> urllib.request.OpenerDirector:
@@ -140,12 +146,32 @@ class PepperAPI:
             )
         return self._opener
 
+    def _refresh_homepage(self) -> None:
+        """Silently GET the homepage to refresh cookies and XSRF token (no login)."""
+        _LOGGER.debug(
+            "Refreshing Pepper homepage to update XSRF token: %s", self.base_url
+        )
+        # Keep existing headers (same User-Agent) to not confuse the WAF
+        req = urllib.request.Request(self.base_url, headers=self._headers)
+        opener = self._get_opener()
+        try:
+            with opener.open(req, timeout=10) as response:
+                response.read()
+        except Exception as err:
+            _LOGGER.warning(
+                "Failed to refresh Pepper homepage %s: %s", self.platform, err
+            )
+            raise ConnectionError(
+                f"Could not connect to Pepper platform: {err}"
+            ) from err
+        self._update_xsrf_token_from_cookies()
+
     def fetch_session(self) -> None:
-        """Fetch the home page to get session cookies and XSRF token."""
+        """Fetch the home page to get session cookies and perform login."""
         _LOGGER.debug(
             "Fetching Pepper home page to establish session: %s", self.base_url
         )
-        # Rotate headers
+        # Rotate headers for a fresh browser fingerprint
         self._headers = get_random_headers()
         req = urllib.request.Request(self.base_url, headers=self._headers)
         opener = self._get_opener()
@@ -185,6 +211,7 @@ class PepperAPI:
 
                     _LOGGER.debug("Waiting 1.5s after login to let session settle")
                     time.sleep(1.5)
+                self._session_authenticated = True
             except Exception as err:
                 _LOGGER.error("Failed to log in during session fetch: %s", err)
                 raise ConnectionError(f"Login failed: {err}") from err
@@ -241,11 +268,21 @@ class PepperAPI:
         except urllib.error.HTTPError as err:
             # Handle Teapot or expired session
             if err.code == 418 and retry_count < 1:
-                _LOGGER.info(
-                    "Session expired or teapot block (418), re-fetching session"
-                )
-                self.fetch_session()
-                # Retry once
+                if self._session_authenticated:
+                    # We have an authenticated session from cookies — just silently
+                    # refresh the homepage to get a fresh XSRF token, no re-login.
+                    _LOGGER.info(
+                        "Got 418 with active session on %s, refreshing homepage only",
+                        self.platform,
+                    )
+                    self._refresh_homepage()
+                else:
+                    # No authenticated session yet — do a full login.
+                    _LOGGER.info(
+                        "Got 418 with no active session on %s, performing full login",
+                        self.platform,
+                    )
+                    self.fetch_session()
                 return self._query(query_str, variables, retry_count=retry_count + 1)
             raise ConnectionError(f"HTTP Error {err.code}: {err.reason}") from err
         except Exception as err:

@@ -1,4 +1,5 @@
 import logging
+
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_SCAN_INTERVAL, Platform
@@ -8,8 +9,6 @@ from homeassistant.core import (
     ServiceResponse,
     SupportsResponse,
 )
-
-_LOGGER = logging.getLogger(__name__)
 
 from .const import (
     CONF_LIMIT,
@@ -25,6 +24,8 @@ from .const import (
 )
 from .coordinator import PepperDataUpdateCoordinator
 from .pepper_api import PepperAPI
+
+_LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
 

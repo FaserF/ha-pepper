@@ -16,6 +16,47 @@ from .entity import PepperEntity
 
 _LOGGER = logging.getLogger(__name__)
 
+# Maximum number of deal entries to include in list state attributes.
+# Keeps per-sensor attribute payloads well below HA's 16 384-byte hard limit.
+MAX_DEALS_IN_ATTRS = 10
+
+# Keys kept when a full deal dict is embedded in state attributes.
+# The `description` field can be several KB of HTML and is the primary
+# cause of the recorder 16 384-byte overflow warning.
+_SLIM_DEAL_KEYS = (
+    "id",
+    "title",
+    "url",
+    "price",
+    "next_best_price",
+    "temperature",
+    "published_at",
+    "picked_at",
+    "voucher_code",
+    "type",
+    "status",
+    "is_expired",
+    "comment_count",
+    "share_count",
+    "merchant",
+    "merchant_page_url",
+    "submitter",
+    "image_url",
+    "groups",
+)
+
+
+def _slim_deal(deal: dict[str, Any]) -> dict[str, Any]:
+    """Return a reduced deal dict without heavy fields (e.g. description)."""
+    return {k: deal[k] for k in _SLIM_DEAL_KEYS if k in deal}
+
+
+def _slim_deals(
+    deals: list[dict[str, Any]], limit: int = MAX_DEALS_IN_ATTRS
+) -> list[dict[str, Any]]:
+    """Return a slimmed and capped list of deal dicts."""
+    return [_slim_deal(d) for d in deals[:limit]]
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -105,7 +146,7 @@ class PepperTopDealsSensor(PepperEntity, SensorEntity):
         return {
             "sort_mode": self.coordinator.sort_mode,
             "deals_count": len(deals),
-            "deals": deals,
+            "deals": _slim_deals(deals),
         }
 
 
@@ -164,7 +205,7 @@ class PepperKeywordAlertsSensor(PepperEntity, SensorEntity):
         return {
             "keywords": self._get_keywords(),
             "matches_count": len(matching),
-            "deals": matching,
+            "deals": _slim_deals(matching),
         }
 
 
@@ -201,7 +242,7 @@ class PepperFreebiesSensor(PepperEntity, SensorEntity):
         )
         return {
             "freebies_count": len(freebies),
-            "freebies": freebies,
+            "freebies": _slim_deals(freebies),
         }
 
 
@@ -236,7 +277,7 @@ class PepperVouchersSensor(PepperEntity, SensorEntity):
         )
         return {
             "vouchers_count": len(vouchers),
-            "vouchers": vouchers,
+            "vouchers": _slim_deals(vouchers),
         }
 
 
@@ -277,7 +318,7 @@ class PepperNewDealsCountSensor(PepperEntity, SensorEntity):
         new_deals = self._get_new_deals()
         return {
             "new_deals_count": len(new_deals),
-            "deals": new_deals,
+            "deals": _slim_deals(new_deals),
         }
 
 
@@ -314,7 +355,7 @@ class PepperExpiredDealsCountSensor(PepperEntity, SensorEntity):
         expired = self._get_expired_deals()
         return {
             "expired_count": len(expired),
-            "deals": expired,
+            "deals": _slim_deals(expired),
         }
 
 
@@ -351,7 +392,7 @@ class PepperPickedDealsCountSensor(PepperEntity, SensorEntity):
         picked = self._get_picked_deals()
         return {
             "picked_count": len(picked),
-            "deals": picked,
+            "deals": _slim_deals(picked),
         }
 
 
@@ -531,7 +572,7 @@ class PepperFreshestDealSensor(PepperEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return details of the freshest deal."""
         deal = self._get_freshest_deal()
-        return {"deal": deal} if deal else {}
+        return {"deal": _slim_deal(deal)} if deal else {}
 
 
 class PepperAverageTemperatureSensor(PepperEntity, SensorEntity):
@@ -624,7 +665,7 @@ class PepperCheapestDealSensor(PepperEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return cheapest deal object."""
         deal = self._get_cheapest_deal()
-        return {"deal": deal} if deal else {}
+        return {"deal": _slim_deal(deal)} if deal else {}
 
 
 class PepperHottestDealTempSensor(PepperEntity, SensorEntity):
@@ -665,7 +706,7 @@ class PepperHottestDealTempSensor(PepperEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return hottest deal details."""
         deal = self._get_hottest_deal()
-        return {"deal": deal} if deal else {}
+        return {"deal": _slim_deal(deal)} if deal else {}
 
 
 class PepperDealTypeDistributionSensor(PepperEntity, SensorEntity):
@@ -735,7 +776,7 @@ class PepperDealsWithVoucherCountSensor(PepperEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the list of deals."""
-        return {"deals": self._get_deals_with_voucher()}
+        return {"deals": _slim_deals(self._get_deals_with_voucher())}
 
 
 class PepperFreebieCountSensor(PepperEntity, SensorEntity):
@@ -795,7 +836,7 @@ class PepperMostCommentedDealSensor(PepperEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return deal attributes."""
         deal = self._get_most_commented()
-        return {"deal": deal} if deal else {}
+        return {"deal": _slim_deal(deal)} if deal else {}
 
 
 class PepperMostSharedDealSensor(PepperEntity, SensorEntity):
@@ -830,7 +871,7 @@ class PepperMostSharedDealSensor(PepperEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return deal attributes."""
         deal = self._get_most_shared()
-        return {"deal": deal} if deal else {}
+        return {"deal": _slim_deal(deal)} if deal else {}
 
 
 class PepperBestPriceSavingSensor(PepperEntity, SensorEntity):
@@ -881,7 +922,7 @@ class PepperBestPriceSavingSensor(PepperEntity, SensorEntity):
         if not savings:
             return {}
         best = max(savings, key=lambda s: s[0])
-        return {"deal": best[1], "saving_amount": best[0]}
+        return {"deal": _slim_deal(best[1]), "saving_amount": best[0]}
 
 
 class PepperBestPriceSavingPercentSensor(PepperEntity, SensorEntity):
@@ -933,7 +974,7 @@ class PepperBestPriceSavingPercentSensor(PepperEntity, SensorEntity):
         if not savings:
             return {}
         best = max(savings, key=lambda s: s[0])
-        return {"deal": best[1], "saving_percent": best[0]}
+        return {"deal": _slim_deal(best[1]), "saving_percent": best[0]}
 
 
 class PepperUserAccountAgeDaysSensor(PepperEntity, SensorEntity):
@@ -1292,7 +1333,7 @@ class PepperHottestDealTitleSensor(PepperEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return deal details."""
         deal = self._get_hottest_deal()
-        return {"deal": deal} if deal else {}
+        return {"deal": _slim_deal(deal)} if deal else {}
 
 
 class PepperUserEmailSensor(PepperEntity, SensorEntity):
@@ -1409,5 +1450,5 @@ class PepperPriceErrorsSensor(PepperEntity, SensorEntity):
         errors = self._get_price_errors()
         return {
             "price_errors_count": len(errors),
-            "deals": errors,
+            "deals": _slim_deals(errors),
         }
