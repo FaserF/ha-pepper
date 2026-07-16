@@ -103,8 +103,38 @@ class PepperOptionsFlowHandler(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage the options."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            username = user_input.get(CONF_USERNAME, "")
+            password = user_input.get(CONF_PASSWORD, "")
+            platform = self.config_entry.data.get(CONF_PLATFORM, DEFAULT_PLATFORM)
+
+            try:
+                # Validate credentials and establish session if provided
+                api = PepperAPI(
+                    platform=platform,
+                    username=username if username else None,
+                    password=password if password else None,
+                )
+                await self.hass.async_add_executor_job(api.fetch_session)
+
+                # Store the verified session info back into config entry data
+                new_data = dict(self.config_entry.data)
+                new_data[CONF_USERNAME] = username
+                new_data[CONF_PASSWORD] = password
+                new_data["cookies"] = api.dump_session_cookies()
+                new_data["xsrf_token"] = api.xsrf_token
+                new_data["headers"] = api._headers
+
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry, data=new_data
+                )
+
+                # Save remaining options
+                return self.async_create_entry(title="", data=user_input)
+            except Exception:
+                errors["base"] = "cannot_connect"
 
         schema = vol.Schema(
             {
@@ -161,4 +191,4 @@ class PepperOptionsFlowHandler(config_entries.OptionsFlow):
             }
         )
 
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
