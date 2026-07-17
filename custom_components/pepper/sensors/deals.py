@@ -441,7 +441,7 @@ class PepperGroupTopDealsSensor(PepperEntity, SensorEntity):
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
-        self.group = group
+        self._group = group
         self._attr_unique_id = (
             f"{entry.entry_id}_group_{group.lower().replace(' ', '_')}_top_deal"
         )
@@ -449,7 +449,7 @@ class PepperGroupTopDealsSensor(PepperEntity, SensorEntity):
 
     def _get_group_deals(self) -> list[dict[str, Any]]:
         deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
-        group_lower = self.group.lower()
+        group_lower = self._group.lower()
         return [
             d
             for d in deals
@@ -469,7 +469,7 @@ class PepperGroupTopDealsSensor(PepperEntity, SensorEntity):
         """Return dynamic group deal attributes."""
         deals = self._get_group_deals()
         return {
-            "group": self.group,
+            "group": self._group,
             "deals_count": len(deals),
             "deals": _slim_deals(deals),
         }
@@ -490,7 +490,7 @@ class PepperGroupDealCountSensor(PepperEntity, SensorEntity):
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
-        self.group = group
+        self._group = group
         self._attr_unique_id = (
             f"{entry.entry_id}_group_{group.lower().replace(' ', '_')}_deal_count"
         )
@@ -498,7 +498,7 @@ class PepperGroupDealCountSensor(PepperEntity, SensorEntity):
 
     def _get_group_deals(self) -> list[dict[str, Any]]:
         deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
-        group_lower = self.group.lower()
+        group_lower = self._group.lower()
         return [
             d
             for d in deals
@@ -514,7 +514,7 @@ class PepperGroupDealCountSensor(PepperEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return dynamic group deal attributes."""
         return {
-            "group": self.group,
+            "group": self._group,
         }
 
 
