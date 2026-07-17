@@ -89,8 +89,14 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 or d.get("type") == "Freebie"
             ]
 
-            # Filter vouchers client-side
-            vouchers = [d for d in all_deals if d.get("type") == "Voucher"]
+            # Vouchers are not included in the main deals feed, so we fetch them separately
+            vouchers = []
+            try:
+                import time
+                time.sleep(1.0)
+                vouchers = self.api.get_deals(sort_mode="new", is_voucher=True, limit=batch_limit)
+            except Exception as err:
+                _LOGGER.warning("Could not fetch vouchers: %s", err)
 
             # Calculate temperature changes
             current_deals_temp = {}
