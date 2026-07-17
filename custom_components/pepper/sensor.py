@@ -153,7 +153,9 @@ class PepperTopDealsSensor(PepperEntity, SensorEntity):
         prices = [
             d["price"]
             for d in deals
-            if d.get("price") is not None and isinstance(d["price"], (int, float))
+            if d.get("price") is not None
+            and isinstance(d["price"], (int, float))
+            and d["price"] > 0.0
         ]
 
         # Cheapest and hottest deals
@@ -161,7 +163,9 @@ class PepperTopDealsSensor(PepperEntity, SensorEntity):
         priced_deals = [
             d
             for d in deals
-            if d.get("price") is not None and isinstance(d["price"], (int, float))
+            if d.get("price") is not None
+            and isinstance(d["price"], (int, float))
+            and d["price"] > 0.0
         ]
         if priced_deals:
             c_d = min(priced_deals, key=lambda d: d["price"])

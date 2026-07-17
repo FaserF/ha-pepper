@@ -1473,3 +1473,89 @@ def test_smart_filter_logic() -> None:
     # Test keywords
     assert match_deal(deals[0], 200, 500.0, [], ["xbox"]) is True
     assert match_deal(deals[0], 200, 500.0, [], ["ps5"]) is False
+
+
+def test_consolidated_top_deals_attributes_logic() -> None:
+    """Test calculations and attribute population in consolidated PepperTopDealsSensor."""
+    deals = [
+        {
+            "title": "Xbox Deal",
+            "price": 400.0,
+            "next_best_price": 500.0,
+            "temperature": 300,
+            "merchant": "Amazon",
+            "submitter": "user1",
+            "type": "Deal",
+            "picked_at": 12345,
+        },
+        {
+            "title": "Freebie Deal",
+            "price": 0.0,
+            "next_best_price": 20.0,
+            "temperature": 5000,
+            "merchant": "Amazon",
+            "submitter": "user2",
+            "type": "Freebie",
+            "is_expired": False,
+            "groups": ["Freebies"],
+        },
+        {
+            "title": "Nintendo Switch",
+            "price": 250.0,
+            "next_best_price": 300.0,
+            "temperature": 150,
+            "merchant": "MediaMarkt",
+            "submitter": "user1",
+            "type": "Deal",
+        },
+    ]
+    freebies = [deals[1]]
+
+    # Extract averages and counts excluding price 0.0
+    temps = [d["temperature"] for d in deals if d.get("temperature") is not None]
+    prices = [
+        d["price"] for d in deals if d.get("price") is not None and d["price"] > 0.0
+    ]
+
+    priced_deals = [d for d in deals if d.get("price") is not None and d["price"] > 0.0]
+    cheapest = min(priced_deals, key=lambda d: d["price"]) if priced_deals else None
+    hottest = max(
+        [d for d in deals if d.get("temperature") is not None],
+        key=lambda d: d["temperature"],
+    )
+
+    assert round(statistics.mean(temps), 1) == 1816.7
+    assert round(statistics.mean(prices), 2) == 325.0
+    assert cheapest["title"] == "Nintendo Switch"
+    assert hottest["title"] == "Freebie Deal"
+    assert len(freebies) == 1
+
+
+def test_consolidated_user_account_attributes_logic() -> None:
+    """Test logic for parsing and formatting consolidated PepperUserAccountSensor attributes."""
+    profile = {
+        "userId": "249802",
+        "username": "FaserF",
+        "email": "seitzf1@yahoo.de",
+        "createdAt": 1390000000,
+        "threadCount": 66,
+        "commentCount": 1803,
+        "avatar": {"path": "users/raw/default", "name": "249802_1"},
+        "badges": [{"badgeId": "badge_1"}, {"badgeId": "badge_2"}],
+    }
+
+    now_ts = 1700000000.0
+    created_ts = profile["createdAt"]
+    account_age_days = max(0, int((now_ts - created_ts) // 86400))
+    dt_iso = datetime.fromtimestamp(created_ts, tz=UTC).isoformat()
+
+    avatar = profile["avatar"]
+    avatar_url = f"https://static.mydealz.de/{avatar['path']}/{avatar['name']}/re/100x100/qt/60/{avatar['name']}.jpg"
+
+    assert account_age_days == 3587
+    assert dt_iso == "2014-01-17T23:06:40+00:00"
+    assert (
+        avatar_url
+        == "https://static.mydealz.de/users/raw/default/249802_1/re/100x100/qt/60/249802_1.jpg"
+    )
+    assert len(profile["badges"]) == 2
