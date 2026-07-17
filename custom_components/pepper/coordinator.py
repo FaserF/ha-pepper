@@ -31,6 +31,8 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._first_refresh = True
         self.last_latency: float | None = None
         self.last_error: str | None = None
+        self.last_update_success: bool = True
+        self.last_success_time: float | None = None
         self._previous_deals: dict[str, float] = {}
         self.dynamic_search_query: str | None = None
         self.dynamic_search_results: list[dict[str, Any]] = []
@@ -140,14 +142,27 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             res = await self.hass.async_add_executor_job(_fetch_all_data)
             self.last_latency = round(time.monotonic() - start_time, 2)
             self.last_error = None
+            self.last_update_success = True
+            self.last_success_time = time.monotonic()
             return res
         except Exception as err:
             self.last_latency = round(time.monotonic() - start_time, 2)
             self.last_error = str(err)
+            self.last_update_success = False
             _LOGGER.warning(
                 "Error fetching Pepper data from platform %s: %s",
                 self.api.platform,
                 err,
                 exc_info=True,
             )
+            # If we have cached data and it's less than 24h (86400s) old, reuse it instead of failing
+            if self.data and self.last_success_time is not None:
+                age = time.monotonic() - self.last_success_time
+                if age < 86400.0:
+                    _LOGGER.info(
+                        "API error on %s; using cached Pepper data from %s ago (max 24h fallback)",
+                        self.api.platform,
+                        timedelta(seconds=int(age)),
+                    )
+                    return self.data
             raise UpdateFailed(f"Error fetching Pepper data: {err}") from err

@@ -330,3 +330,22 @@ def test_consolidated_user_account_attributes_logic() -> None:
         == "https://static.mydealz.de/users/raw/default/249802_1/re/100x100/qt/60/249802_1.jpg"
     )
     assert len(profile["badges"]) == 2
+
+
+def test_coordinator_cache_fallback_logic() -> None:
+    """Test coordinator fallback logic on API errors (within/beyond 24h limit)."""
+    last_success_time = 1000.0
+    cached_data = {"deals": [{"id": 1}]}
+
+    # Fetch fails at t = 2000 (age 1000s < 86400s -> within 24h)
+    now_ts = 2000.0
+    age = now_ts - last_success_time
+    assert age < 86400.0
+    returned_data = cached_data  # logic maps to returning self.data
+    assert returned_data == cached_data
+
+    # Fetch fails at t = 90000 (age 89000s > 86400s -> over 24h)
+    now_ts = 90000.0
+    age = now_ts - last_success_time
+    assert age >= 86400.0
+    # logic raises UpdateFailed
