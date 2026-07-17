@@ -93,8 +93,11 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             vouchers = []
             try:
                 import time
+
                 time.sleep(1.0)
-                vouchers = self.api.get_deals(sort_mode="new", is_voucher=True, limit=batch_limit)
+                vouchers = self.api.get_deals(
+                    sort_mode="new", is_voucher=True, limit=batch_limit
+                )
             except Exception as err:
                 _LOGGER.warning("Could not fetch vouchers: %s", err)
 
