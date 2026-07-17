@@ -31,6 +31,9 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._first_refresh = True
         self.last_latency: float | None = None
         self.last_error: str | None = None
+        self._previous_deals: dict[str, float] = {}
+        self.dynamic_search_query: str | None = None
+        self.dynamic_search_results: list[dict[str, Any]] = []
 
         super().__init__(
             hass,
@@ -87,6 +90,20 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Filter vouchers client-side
             vouchers = [d for d in all_deals if d.get("type") == "Voucher"]
 
+            # Calculate temperature changes
+            current_deals_temp = {}
+            for d in all_deals:
+                deal_id = d.get("id")
+                temp = d.get("temperature")
+                if deal_id is not None and temp is not None:
+                    current_deals_temp[str(deal_id)] = float(temp)
+                    prev_temp = self._previous_deals.get(str(deal_id))
+                    if prev_temp is not None:
+                        d["temp_change"] = round(float(temp) - prev_temp, 2)
+                    else:
+                        d["temp_change"] = 0.0
+            self._previous_deals = current_deals_temp
+
             # Fetch user profile if logged in with safety delay
             profile = None
             if self.api.username:
@@ -94,6 +111,19 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                 time.sleep(1.5)
                 profile = self.api.get_user_profile()
+
+            # Dynamic search execution
+            if self.dynamic_search_query:
+                import time
+
+                time.sleep(1.5)
+                try:
+                    self.dynamic_search_results = self.api.search_deals(
+                        self.dynamic_search_query
+                    )
+                except Exception as err:
+                    _LOGGER.warning("Error fetching dynamic search deals: %s", err)
+                    self.dynamic_search_results = []
 
             return {
                 "deals": deals,

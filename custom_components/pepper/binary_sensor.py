@@ -10,7 +10,17 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CONF_KEYWORDS, CONF_TEMP_THRESHOLD, DEFAULT_TEMP_THRESHOLD, DOMAIN
+from .const import (
+    CONF_FILTER_KEYWORDS,
+    CONF_FILTER_MAX_PRICE,
+    CONF_FILTER_MERCHANTS,
+    CONF_FILTER_MIN_TEMP,
+    CONF_KEYWORDS,
+    CONF_TEMP_THRESHOLD,
+    DEFAULT_FILTER_MIN_TEMP,
+    DEFAULT_TEMP_THRESHOLD,
+    DOMAIN,
+)
 from .coordinator import PepperDataUpdateCoordinator
 from .entity import PepperEntity
 
@@ -33,6 +43,8 @@ async def async_setup_entry(
         PepperKeywordMatchAvailableSensor(coordinator, entry),
         PepperSuperHotDealAvailableSensor(coordinator, entry),
         PepperPriceErrorAvailableSensor(coordinator, entry),
+        # Advanced Smart Filter
+        PepperSmartFilterMatchSensor(coordinator, entry),
     ]
 
     async_add_entities(entities, True)
@@ -382,4 +394,90 @@ class PepperPriceErrorAvailableSensor(PepperEntity, BinarySensorEntity):
         return {
             "price_errors_count": len(errors),
             "deals": errors,
+        }
+
+
+class PepperSmartFilterMatchSensor(PepperEntity, BinarySensorEntity):
+    """Binary sensor that turns ON if any deal matches all custom smart filter rules."""
+
+    _attr_icon = "mdi:filter-check"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_smart_filter_match"
+        self._attr_name = "Smart Filter Match"
+
+    def _get_matching_deals(self) -> list[dict[str, Any]]:
+        if not self.coordinator.data:
+            return []
+        deals = self.coordinator.data.get("deals", [])
+
+        min_temp = self._entry.options.get(
+            CONF_FILTER_MIN_TEMP,
+            self._entry.data.get(CONF_FILTER_MIN_TEMP, DEFAULT_FILTER_MIN_TEMP),
+        )
+        max_price = self._entry.options.get(
+            CONF_FILTER_MAX_PRICE,
+            self._entry.data.get(CONF_FILTER_MAX_PRICE, 0.0),
+        )
+        raw_merchants = self._entry.options.get(
+            CONF_FILTER_MERCHANTS,
+            self._entry.data.get(CONF_FILTER_MERCHANTS, ""),
+        )
+        raw_keywords = self._entry.options.get(
+            CONF_FILTER_KEYWORDS,
+            self._entry.data.get(CONF_FILTER_KEYWORDS, ""),
+        )
+
+        merchants = [m.strip().lower() for m in raw_merchants.split(",") if m.strip()]
+        keywords = [k.strip().lower() for k in raw_keywords.split(",") if k.strip()]
+
+        matching = []
+        for d in deals:
+            temp = d.get("temperature")
+            if temp is None or not isinstance(temp, (int, float)) or temp < min_temp:
+                continue
+
+            price = d.get("price")
+            if max_price > 0.0:
+                if (
+                    price is None
+                    or not isinstance(price, (int, float))
+                    or price > max_price
+                ):
+                    continue
+
+            if merchants:
+                merchant = d.get("merchant")
+                if not merchant or merchant.lower() not in merchants:
+                    continue
+
+            if keywords:
+                title = (d.get("title") or "").lower()
+                description = (d.get("description") or "").lower()
+                if not any(k in title or k in description for k in keywords):
+                    continue
+
+            matching.append(d)
+        return matching
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if any matching deals are found."""
+        return len(self._get_matching_deals()) > 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes."""
+        matching = self._get_matching_deals()
+        return {
+            "matches_count": len(matching),
+            "deals": matching,
         }

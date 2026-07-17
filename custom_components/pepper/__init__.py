@@ -119,6 +119,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         async_refresh_service,
     )
 
+    # Register the set_search_query service/action
+    async def async_set_search_query_service(call: ServiceCall) -> None:
+        """Set dynamic search query."""
+        query = call.data.get("query")
+        coordinator.dynamic_search_query = query if query else None
+        await coordinator.async_request_refresh()
+
+    hass.services.async_register(
+        DOMAIN,
+        "set_search_query",
+        async_set_search_query_service,
+        schema=vol.Schema(
+            {
+                vol.Optional("query", default=""): str,
+            }
+        ),
+    )
+
     # Register listener for options updates
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 

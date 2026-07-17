@@ -9,6 +9,10 @@ from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.core import callback
 
 from .const import (
+    CONF_FILTER_KEYWORDS,
+    CONF_FILTER_MAX_PRICE,
+    CONF_FILTER_MERCHANTS,
+    CONF_FILTER_MIN_TEMP,
     CONF_GROUPS,
     CONF_KEYWORDS,
     CONF_LIMIT,
@@ -17,6 +21,7 @@ from .const import (
     CONF_SORT_MODE,
     CONF_TEMP_THRESHOLD,
     CONF_USERNAME,
+    DEFAULT_FILTER_MIN_TEMP,
     DEFAULT_LIMIT,
     DEFAULT_PLATFORM,
     DEFAULT_SCAN_INTERVAL,
@@ -84,6 +89,12 @@ class PepperConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignor
                 ),
                 vol.Optional(CONF_USERNAME, default=""): vol.Coerce(str),
                 vol.Optional(CONF_PASSWORD, default=""): vol.Coerce(str),
+                vol.Optional(
+                    CONF_FILTER_MIN_TEMP, default=DEFAULT_FILTER_MIN_TEMP
+                ): vol.Coerce(int),
+                vol.Optional(CONF_FILTER_MAX_PRICE, default=0.0): vol.Coerce(float),
+                vol.Optional(CONF_FILTER_MERCHANTS, default=""): vol.Coerce(str),
+                vol.Optional(CONF_FILTER_KEYWORDS, default=""): vol.Coerce(str),
             }
         )
 
@@ -194,6 +205,36 @@ class PepperOptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_PASSWORD,
                     default=self.config_entry.options.get(
                         CONF_PASSWORD, self.config_entry.data.get(CONF_PASSWORD, "")
+                    ),
+                ): vol.Coerce(str),
+                vol.Optional(
+                    CONF_FILTER_MIN_TEMP,
+                    default=self.config_entry.options.get(
+                        CONF_FILTER_MIN_TEMP,
+                        self.config_entry.data.get(
+                            CONF_FILTER_MIN_TEMP, DEFAULT_FILTER_MIN_TEMP
+                        ),
+                    ),
+                ): vol.Coerce(int),
+                vol.Optional(
+                    CONF_FILTER_MAX_PRICE,
+                    default=self.config_entry.options.get(
+                        CONF_FILTER_MAX_PRICE,
+                        self.config_entry.data.get(CONF_FILTER_MAX_PRICE, 0.0),
+                    ),
+                ): vol.Coerce(float),
+                vol.Optional(
+                    CONF_FILTER_MERCHANTS,
+                    default=self.config_entry.options.get(
+                        CONF_FILTER_MERCHANTS,
+                        self.config_entry.data.get(CONF_FILTER_MERCHANTS, ""),
+                    ),
+                ): vol.Coerce(str),
+                vol.Optional(
+                    CONF_FILTER_KEYWORDS,
+                    default=self.config_entry.options.get(
+                        CONF_FILTER_KEYWORDS,
+                        self.config_entry.data.get(CONF_FILTER_KEYWORDS, ""),
                     ),
                 ): vol.Coerce(str),
             }

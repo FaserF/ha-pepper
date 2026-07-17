@@ -1391,3 +1391,85 @@ def test_group_filtered_sensors_logic() -> None:
 
     none_deals = get_group_deals(deals, "NoneExisting")
     assert len(none_deals) == 0
+
+
+def test_temperature_trend_logic() -> None:
+    """Test calculations for temperature trends."""
+    previous_deals = {"1": 100.0, "2": 200.0}
+    current_deals = [
+        {"id": "1", "temperature": 150.0},
+        {"id": "2", "temperature": 180.0},
+        {"id": "3", "temperature": 50.0},
+    ]
+
+    for d in current_deals:
+        deal_id = d.get("id")
+        temp = d.get("temperature")
+        if deal_id is not None and temp is not None:
+            prev_temp = previous_deals.get(deal_id)
+            if prev_temp is not None:
+                d["temp_change"] = round(temp - prev_temp, 2)
+            else:
+                d["temp_change"] = 0.0
+
+    assert current_deals[0]["temp_change"] == 50.0
+    assert current_deals[1]["temp_change"] == -20.0
+    assert current_deals[2]["temp_change"] == 0.0
+
+
+def test_smart_filter_logic() -> None:
+    """Test smart filter matching rules."""
+    deals = [
+        {
+            "title": "Xbox Deal",
+            "price": 400.0,
+            "temperature": 300,
+            "merchant": "Amazon",
+            "description": "Console",
+        },
+        {
+            "title": "Cheap PS5 Deal",
+            "price": 450.0,
+            "temperature": 150,
+            "merchant": "Amazon",
+            "description": "Console",
+        },
+        {
+            "title": "Switch Deal",
+            "price": 250.0,
+            "temperature": 250,
+            "merchant": "MediaMarkt",
+            "description": "Handheld",
+        },
+    ]
+
+    def match_deal(d, min_temp, max_price, merchants, keywords):
+        temp = d.get("temperature")
+        if temp is None or temp < min_temp:
+            return False
+        price = d.get("price")
+        if max_price > 0.0:
+            if price is None or price > max_price:
+                return False
+        if merchants:
+            merchant = d.get("merchant")
+            if not merchant or merchant.lower() not in merchants:
+                return False
+        if keywords:
+            title = (d.get("title") or "").lower()
+            description = (d.get("description") or "").lower()
+            if not any(k in title or k in description for k in keywords):
+                return False
+        return True
+
+    # Test temp & price
+    assert match_deal(deals[0], 200, 500.0, [], []) is True
+    assert match_deal(deals[1], 200, 500.0, [], []) is False  # low temp
+
+    # Test merchant
+    assert match_deal(deals[0], 200, 500.0, ["amazon"], []) is True
+    assert match_deal(deals[2], 200, 500.0, ["amazon"], []) is False  # wrong merchant
+
+    # Test keywords
+    assert match_deal(deals[0], 200, 500.0, [], ["xbox"]) is True
+    assert match_deal(deals[0], 200, 500.0, [], ["ps5"]) is False

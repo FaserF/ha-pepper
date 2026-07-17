@@ -12,3 +12,14 @@ search:
 refresh:
   name: Refresh
   description: Force the integration to immediately pull the latest data from the platform.
+
+set_search_query:
+  name: Set Dynamic Search Query
+  description: Update the dynamic search query string to show custom live deals on the dashboard sensor.
+  fields:
+    query:
+      name: Query
+      description: The query to run for the dynamic search sensor (e.g., 'rtx 4080'). Leave blank to disable.
+      required: false
+      selector:
+        text:
