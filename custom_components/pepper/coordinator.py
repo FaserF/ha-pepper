@@ -29,6 +29,8 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.sort_mode = sort_mode
         self.limit = limit
         self._first_refresh = True
+        self.last_latency: float | None = None
+        self.last_error: str | None = None
 
         super().__init__(
             hass,
@@ -100,10 +102,18 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "profile": profile,
             }
 
+        import time
+
+        start_time = time.monotonic()
         try:
             # Run the synchronous API calls in an executor thread
-            return await self.hass.async_add_executor_job(_fetch_all_data)
+            res = await self.hass.async_add_executor_job(_fetch_all_data)
+            self.last_latency = round(time.monotonic() - start_time, 2)
+            self.last_error = None
+            return res
         except Exception as err:
+            self.last_latency = round(time.monotonic() - start_time, 2)
+            self.last_error = str(err)
             _LOGGER.warning(
                 "Error fetching Pepper data from platform %s: %s",
                 self.api.platform,

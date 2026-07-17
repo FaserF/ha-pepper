@@ -9,6 +9,7 @@ from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.core import callback
 
 from .const import (
+    CONF_GROUPS,
     CONF_KEYWORDS,
     CONF_LIMIT,
     CONF_PASSWORD,
@@ -74,6 +75,7 @@ class PepperConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignor
                     CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
                 ): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),
                 vol.Optional(CONF_KEYWORDS, default=""): vol.Coerce(str),
+                vol.Optional(CONF_GROUPS, default=""): vol.Coerce(str),
                 vol.Optional(
                     CONF_TEMP_THRESHOLD, default=DEFAULT_TEMP_THRESHOLD
                 ): vol.Coerce(int),
@@ -158,6 +160,12 @@ class PepperOptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_KEYWORDS,
                     default=self.config_entry.options.get(
                         CONF_KEYWORDS, self.config_entry.data.get(CONF_KEYWORDS, "")
+                    ),
+                ): vol.Coerce(str),
+                vol.Optional(
+                    CONF_GROUPS,
+                    default=self.config_entry.options.get(
+                        CONF_GROUPS, self.config_entry.data.get(CONF_GROUPS, "")
                     ),
                 ): vol.Coerce(str),
                 vol.Optional(

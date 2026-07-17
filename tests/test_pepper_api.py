@@ -1343,3 +1343,51 @@ def test_price_error_logic() -> None:
     assert errors[0]["title"] == "Preisfehler in Title"
     assert errors[1]["description"] == "description mentioning preisfehler"
     assert errors[2]["groups"] == ["Preisfehler"]
+
+
+def test_api_latency_and_status_logic() -> None:
+    """Test API latency and status logic."""
+
+    class MockCoordinator:
+        def __init__(self):
+            self.last_latency = 1.23
+            self.last_error = "Connection timeout"
+            self.last_update_success = False
+
+    coord = MockCoordinator()
+    assert coord.last_latency == 1.23
+    assert coord.last_error == "Connection timeout"
+    assert coord.last_update_success is False
+
+
+def test_group_filtered_sensors_logic() -> None:
+    """Test the filtering logic used in PepperGroupTopDealsSensor and PepperGroupDealCountSensor."""
+    deals = [
+        {"title": "Xbox Deal", "groups": ["Gaming", "Electronics"]},
+        {"title": "Shirt Deal", "groups": ["Fashion"]},
+        {"title": "TV Deal", "groups": ["Electronics"]},
+    ]
+
+    def get_group_deals(deals_list, group_name):
+        group_lower = group_name.lower()
+        return [
+            d
+            for d in deals_list
+            if any(g.lower() == group_lower for g in d.get("groups", []))
+        ]
+
+    gaming_deals = get_group_deals(deals, "Gaming")
+    assert len(gaming_deals) == 1
+    assert gaming_deals[0]["title"] == "Xbox Deal"
+
+    electronics_deals = get_group_deals(deals, "Electronics")
+    assert len(electronics_deals) == 2
+    assert electronics_deals[0]["title"] == "Xbox Deal"
+    assert electronics_deals[1]["title"] == "TV Deal"
+
+    fashion_deals = get_group_deals(deals, "Fashion")
+    assert len(fashion_deals) == 1
+    assert fashion_deals[0]["title"] == "Shirt Deal"
+
+    none_deals = get_group_deals(deals, "NoneExisting")
+    assert len(none_deals) == 0

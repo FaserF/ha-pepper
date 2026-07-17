@@ -9,6 +9,8 @@ CONF_KEYWORDS = "keywords"
 CONF_TEMP_THRESHOLD = "temp_threshold"
 CONF_USERNAME = "username"
 CONF_PASSWORD = "password"
+CONF_GROUPS = "groups"
+
 
 DEFAULT_SORT_MODE = "hot"
 DEFAULT_LIMIT = 10

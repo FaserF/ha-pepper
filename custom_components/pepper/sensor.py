@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CONF_KEYWORDS, DOMAIN
+from .const import CONF_GROUPS, CONF_KEYWORDS, DOMAIN
 from .coordinator import PepperDataUpdateCoordinator
 from .entity import PepperEntity
 
@@ -97,6 +97,9 @@ async def async_setup_entry(
         PepperTopGroupSensor(coordinator, entry),
         PepperHottestDealTitleSensor(coordinator, entry),
         PepperPriceErrorsSensor(coordinator, entry),
+        # Diagnostics
+        PepperAPILatencySensor(coordinator, entry),
+        PepperAPIStatusSensor(coordinator, entry),
     ]
 
     if coordinator.api.username:
@@ -110,6 +113,18 @@ async def async_setup_entry(
                 PepperUserAvatarSensor(coordinator, entry),
             ]
         )
+
+    # Dynamic group/category sensors
+    raw_groups = entry.options.get(CONF_GROUPS, entry.data.get(CONF_GROUPS, ""))
+    if raw_groups:
+        groups = [g.strip() for g in raw_groups.split(",") if g.strip()]
+        for group in groups:
+            entities.extend(
+                [
+                    PepperGroupTopDealsSensor(coordinator, entry, group),
+                    PepperGroupDealCountSensor(coordinator, entry, group),
+                ]
+            )
 
     async_add_entities(entities, True)
 
@@ -1451,4 +1466,149 @@ class PepperPriceErrorsSensor(PepperEntity, SensorEntity):
         return {
             "price_errors_count": len(errors),
             "deals": _slim_deals(errors),
+        }
+
+
+class PepperAPILatencySensor(PepperEntity, SensorEntity):
+    """Sensor showing the Pepper API query latency."""
+
+    _attr_icon = "mdi:timer-outline"
+    _attr_native_unit_of_measurement = "s"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_api_latency"
+        self._attr_name = "API Latency"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the API latency."""
+        return self.coordinator.last_latency
+
+
+class PepperAPIStatusSensor(PepperEntity, SensorEntity):
+    """Sensor showing the Pepper API status."""
+
+    _attr_icon = "mdi:api"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self._attr_unique_id = f"{entry.entry_id}_api_status"
+        self._attr_name = "API Status"
+
+    @property
+    def native_value(self) -> str:
+        """Return the status."""
+        return "Error" if self.coordinator.last_error else "Online"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return status attributes."""
+        return {
+            "last_error": self.coordinator.last_error,
+            "last_update_success": self.coordinator.last_update_success,
+        }
+
+
+class PepperGroupTopDealsSensor(PepperEntity, SensorEntity):
+    """Sensor showing the top deal for a specific category/group."""
+
+    _attr_icon = "mdi:tag-outline"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+        group: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self.group = group
+        self._attr_unique_id = (
+            f"{entry.entry_id}_group_{group.lower().replace(' ', '_')}_top_deal"
+        )
+        self._attr_name = f"Top Deal - {group}"
+
+    def _get_group_deals(self) -> list[dict[str, Any]]:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        group_lower = self.group.lower()
+        return [
+            d
+            for d in deals
+            if any(g.lower() == group_lower for g in d.get("groups", []))
+        ]
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the title of the top deal in this group."""
+        deals = self._get_group_deals()
+        if deals:
+            return deals[0].get("title")
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return dynamic group deal attributes."""
+        deals = self._get_group_deals()
+        return {
+            "group": self.group,
+            "deals_count": len(deals),
+            "deals": _slim_deals(deals),
+        }
+
+
+class PepperGroupDealCountSensor(PepperEntity, SensorEntity):
+    """Sensor showing the count of deals in a specific category/group."""
+
+    _attr_icon = "mdi:numeric"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: PepperDataUpdateCoordinator,
+        entry: ConfigEntry,
+        group: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry.entry_id, coordinator.api.platform)
+        self.group = group
+        self._attr_unique_id = (
+            f"{entry.entry_id}_group_{group.lower().replace(' ', '_')}_deal_count"
+        )
+        self._attr_name = f"Deal Count - {group}"
+
+    def _get_group_deals(self) -> list[dict[str, Any]]:
+        deals = self.coordinator.data.get("deals", []) if self.coordinator.data else []
+        group_lower = self.group.lower()
+        return [
+            d
+            for d in deals
+            if any(g.lower() == group_lower for g in d.get("groups", []))
+        ]
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of deals in this group."""
+        return len(self._get_group_deals())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return dynamic group deal attributes."""
+        return {
+            "group": self.group,
         }
