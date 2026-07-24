@@ -1,10 +1,6 @@
 version = 1
 revision = 3
-requires-python = ">=3.14.0"
-resolution-markers = [
-    "python_full_version >= '3.15'",
-    "python_full_version < '3.15'",
-]
+requires-python = "==3.14.6"
 
 [[package]]
 name = "ast-serialize"
@@ -73,10 +69,10 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "mypy", specifier = ">=2.3.0" },
-    { name = "pytest", specifier = ">=9.1.1" },
-    { name = "pytest-asyncio", specifier = ">=1.4.0" },
-    { name = "ruff", specifier = ">=0.15.21" },
+    { name = "mypy", specifier = "==2.3.0" },
+    { name = "pytest", specifier = "==9.1.1" },
+    { name = "pytest-asyncio", specifier = "==1.4.0" },
+    { name = "ruff", specifier = "==0.15.21" },
 ]
 
 [[package]]

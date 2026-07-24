@@ -6,7 +6,7 @@ authors = [
     {name = "FaserF", email = "github@fabiseitz.de"}
 ]
 readme = "README.md"
-requires-python = ">=3.14.0"
+requires-python = "==3.14.6"
 
 [tool.ruff]
 target-version = "py312"
@@ -61,8 +61,8 @@ asyncio_mode = "auto"
 
 [dependency-groups]
 dev = [
-    "mypy>=2.3.0",
-    "pytest>=9.1.1",
-    "pytest-asyncio>=1.4.0",
-    "ruff>=0.15.21",
+    "mypy==2.3.0",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "ruff==0.15.21",
 ]
