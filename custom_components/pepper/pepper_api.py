@@ -219,12 +219,12 @@ class PepperAPI:
                 self._logging_in = False
 
     def _query(
-        self, query_str: str, variables: dict[str, Any], retry_count: int = 0
+        self, query_str: str, variables: dict[str, Any], retry_count: int = 0, is_initial_fetch: bool = False
     ) -> dict[str, Any]:
         """Perform a GraphQL query."""
         import sys
 
-        if "pytest" not in sys.modules and "unittest" not in sys.modules:
+        if "pytest" not in sys.modules and "unittest" not in sys.modules and not is_initial_fetch:
             import time
 
             _LOGGER.debug("Waiting 2.0s to rate-limit GraphQL POST request")
@@ -363,6 +363,7 @@ class PepperAPI:
         is_freebies: bool = False,
         is_voucher: bool = False,
         limit: int = 30,
+        is_initial_fetch: bool = False,
     ) -> list[dict[str, Any]]:
         """Fetch deals.
 
@@ -430,7 +431,7 @@ class PepperAPI:
               }}
             }}
             """
-            data = self._query(query, variables)
+            data = self._query(query, variables, is_initial_fetch=is_initial_fetch)
             threads = data.get("hottestWidget", {}).get("threads", []) or []
         else:
             query = f"""
@@ -440,7 +441,7 @@ class PepperAPI:
               }}
             }}
             """
-            data = self._query(query, variables)
+            data = self._query(query, variables, is_initial_fetch=is_initial_fetch)
             threads = data.get("threads", []) or []
 
         deals = []

@@ -53,6 +53,7 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await asyncio.sleep(jitter)
 
         def _fetch_all_data() -> dict[str, Any]:
+            is_first_fetch = self._first_refresh
             # On the very first fetch, explicitly prime the session:
             # - If we already have serialized cookies (authenticated), just silently GET
             #   the homepage to refresh XSRF — no new login that would trigger the WAF.
@@ -72,7 +73,9 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Fetch a single large batch of deals to cover all types and extract freebies/vouchers
             batch_limit = max(100, self.limit)
-            all_deals = self.api.get_deals(self.sort_mode, limit=batch_limit)
+            all_deals = self.api.get_deals(
+                self.sort_mode, limit=batch_limit, is_initial_fetch=is_first_fetch
+            )
 
             # Slice to configured limit for standard deals
             deals = all_deals[: self.limit]
@@ -90,7 +93,10 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             vouchers = []
             try:
                 vouchers = self.api.get_deals(
-                    sort_mode="new", is_voucher=True, limit=batch_limit
+                    sort_mode="new",
+                    is_voucher=True,
+                    limit=batch_limit,
+                    is_initial_fetch=is_first_fetch,
                 )
             except Exception as err:
                 _LOGGER.warning("Could not fetch vouchers: %s", err)
