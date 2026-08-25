@@ -1,0 +1,20 @@
+# Pull Request Labeler Configuration
+integration:
+  - changed-files:
+      - any-glob-to-any-file: 'custom_components/**/*'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'README.md'
+          - 'docs/**/*'
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: '.github/**/*'
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'pyproject.toml'
+          - 'requirements*.txt'
