@@ -46,14 +46,11 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Pepper API."""
-        # Add a random jitter delay to evade anti-bot profiling
-        jitter = random.uniform(2.0, 6.0)
-        if self.api.username and self._first_refresh:
-            # Extra delay on startup to prevent WAF rate-limiting immediately after config flow login
-            jitter += 12.0
-            self._first_refresh = False
-        _LOGGER.debug("Waiting for random jitter delay of %.2fs", jitter)
-        await asyncio.sleep(jitter)
+        # On background updates add a random jitter delay to evade anti-bot profiling
+        if not self._first_refresh:
+            jitter = random.uniform(2.0, 6.0)
+            _LOGGER.debug("Waiting for random jitter delay of %.2fs", jitter)
+            await asyncio.sleep(jitter)
 
         def _fetch_all_data() -> dict[str, Any]:
             # On the very first fetch, explicitly prime the session:
