@@ -89,9 +89,6 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Vouchers are not included in the main deals feed, so we fetch them separately
             vouchers = []
             try:
-                import time
-
-                time.sleep(1.0)
                 vouchers = self.api.get_deals(
                     sort_mode="new", is_voucher=True, limit=batch_limit
                 )
@@ -112,19 +109,13 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         d["temp_change"] = 0.0
             self._previous_deals = current_deals_temp
 
-            # Fetch user profile if logged in with safety delay
+            # Fetch user profile if logged in
             profile = None
             if self.api.username:
-                import time
-
-                time.sleep(1.5)
                 profile = self.api.get_user_profile()
 
             # Dynamic search execution
             if self.dynamic_search_query:
-                import time
-
-                time.sleep(1.5)
                 try:
                     self.dynamic_search_results = self.api.search_deals(
                         self.dynamic_search_query
