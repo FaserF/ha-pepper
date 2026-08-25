@@ -36,6 +36,8 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._previous_deals: dict[str, float] = {}
         self.dynamic_search_query: str | None = None
         self.dynamic_search_results: list[dict[str, Any]] = []
+        from homeassistant.helpers import storage
+        self._store = storage.Store(hass, 1, f"pepper_{sort_mode}_cache")
 
         super().__init__(
             hass,
@@ -46,6 +48,24 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Pepper API."""
+        from homeassistant.util import dt as dt_util
+
+        # --- Check Persistent Storage on Startup ---
+        if self._first_refresh and self.data is None:
+            try:
+                cached = await self._store.async_load()
+                if cached and isinstance(cached, dict):
+                    c_data = cached.get("data")
+                    c_ts_str = cached.get("timestamp")
+                    if c_data and c_ts_str:
+                        c_ts = dt_util.parse_datetime(c_ts_str)
+                        if c_ts and (dt_util.now() - c_ts) < self.update_interval:
+                            _LOGGER.info("Reusing cached Pepper deals on startup for %s", self.sort_mode)
+                            self._first_refresh = False
+                            return c_data
+            except Exception as err:
+                _LOGGER.debug("Could not load Pepper cache: %s", err)
+
         # On background updates add a random jitter delay to evade anti-bot profiling
         if not self._first_refresh:
             jitter = random.uniform(2.0, 6.0)
@@ -147,6 +167,14 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.last_error = None
             self.last_update_success = True
             self.last_success_time = time.monotonic()
+            try:
+                from homeassistant.util import dt as dt_util
+                await self._store.async_save({
+                    "data": res,
+                    "timestamp": dt_util.now().isoformat(),
+                })
+            except Exception as s_err:
+                _LOGGER.debug("Could not save Pepper store: %s", s_err)
             return res
         except Exception as err:
             self.last_latency = round(time.monotonic() - start_time, 2)
