@@ -37,6 +37,7 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.dynamic_search_query: str | None = None
         self.dynamic_search_results: list[dict[str, Any]] = []
         from homeassistant.helpers import storage
+
         self._store = storage.Store(hass, 1, f"pepper_{sort_mode}_cache")
 
         super().__init__(
@@ -60,7 +61,10 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     if c_data and c_ts_str:
                         c_ts = dt_util.parse_datetime(c_ts_str)
                         if c_ts and (dt_util.now() - c_ts) < self.update_interval:
-                            _LOGGER.info("Reusing cached Pepper deals on startup for %s", self.sort_mode)
+                            _LOGGER.info(
+                                "Reusing cached Pepper deals on startup for %s",
+                                self.sort_mode,
+                            )
                             self._first_refresh = False
                             return c_data
             except Exception as err:
@@ -169,10 +173,13 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.last_success_time = time.monotonic()
             try:
                 from homeassistant.util import dt as dt_util
-                await self._store.async_save({
-                    "data": res,
-                    "timestamp": dt_util.now().isoformat(),
-                })
+
+                await self._store.async_save(
+                    {
+                        "data": res,
+                        "timestamp": dt_util.now().isoformat(),
+                    }
+                )
             except Exception as s_err:
                 _LOGGER.debug("Could not save Pepper store: %s", s_err)
             return res
