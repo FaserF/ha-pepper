@@ -38,7 +38,7 @@ class PepperDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.dynamic_search_results: list[dict[str, Any]] = []
         from homeassistant.helpers import storage
 
-        self._store = storage.Store(hass, 1, f"pepper_{sort_mode}_cache")
+        self._store: Any = storage.Store(hass, 1, f"pepper_{sort_mode}_cache")
 
         super().__init__(
             hass,
