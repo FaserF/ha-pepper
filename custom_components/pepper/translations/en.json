@@ -9,15 +9,29 @@
           "sort_mode": "Deals Sort Mode",
           "scan_interval": "Update Interval (minutes)",
           "keywords": "Tracked Keywords (comma-separated)",
+          "groups": "Deal Groups (comma-separated)",
           "temp_threshold": "Temperature Threshold for Alerts",
           "limit": "Max Deals to Fetch",
           "username": "Username (Optional)",
-          "password": "Password (Optional)"
+          "password": "Password (Optional)",
+          "filter_min_temp": "Smart Filter: Minimum Temperature",
+          "filter_max_price": "Smart Filter: Maximum Price",
+          "filter_merchants": "Smart Filter: Merchants (comma-separated)",
+          "filter_keywords": "Smart Filter: Keywords (comma-separated)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Pepper",
+        "description": "Please enter updated credentials for {platform}.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
         }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to the selected Pepper platform. Check your internet connection or try again."
+      "cannot_connect": "Failed to connect to the selected Pepper platform. Check your internet connection or try again.",
+      "invalid_auth": "Invalid username or password."
     }
   },
   "options": {
@@ -29,10 +43,21 @@
           "sort_mode": "Deals Sort Mode",
           "scan_interval": "Update Interval (minutes)",
           "keywords": "Tracked Keywords (comma-separated)",
+          "groups": "Deal Groups (comma-separated)",
           "temp_threshold": "Temperature Threshold for Alerts",
-          "limit": "Max Deals to Fetch"
+          "limit": "Max Deals to Fetch",
+          "username": "Username (Optional)",
+          "password": "Password (Optional)",
+          "filter_min_temp": "Smart Filter: Minimum Temperature",
+          "filter_max_price": "Smart Filter: Maximum Price",
+          "filter_merchants": "Smart Filter: Merchants (comma-separated)",
+          "filter_keywords": "Smart Filter: Keywords (comma-separated)"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the selected Pepper platform. Check your internet connection or try again.",
+      "invalid_auth": "Invalid username or password."
     }
   },
   "services": {
@@ -49,6 +74,16 @@
     "refresh": {
       "name": "Refresh",
       "description": "Force the integration to immediately pull the latest data from the platform."
+    },
+    "set_search_query": {
+      "name": "Set Dynamic Search Query",
+      "description": "Update the dynamic search query string to show custom live deals on the dashboard sensor.",
+      "fields": {
+        "query": {
+          "name": "Query",
+          "description": "The query to run for the dynamic search sensor (e.g., 'rtx 4080'). Leave blank to disable."
+        }
+      }
     }
   }
 }

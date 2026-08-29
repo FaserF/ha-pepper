@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 import pytest
 
-from custom_components.pepper.pepper_api import PepperAPI
+from custom_components.pepper.pepper_api import PepperAPI, PepperAuthError
 
 
 @pytest.fixture
@@ -570,3 +570,36 @@ def test_groups_parsing_in_get_deals(api: PepperAPI) -> None:
         deals = api.get_deals(sort_mode="new")
         assert len(deals) == 1
         assert deals[0]["groups"] == ["Telefon Internet", "Dsl Cable"]
+
+
+def test_login_auth_error_raises_pepper_auth_error(api_with_auth: PepperAPI) -> None:
+    """Test that login raises PepperAuthError on invalid credentials error."""
+    api_with_auth.xsrf_token = "dummy_token"
+    graphql_response = {
+        "errors": [{"message": "Invalid username or password"}],
+        "data": None,
+    }
+    with patch("urllib.request.OpenerDirector.open") as mock_open:
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(graphql_response).encode("utf-8")
+        mock_open.return_value.__enter__.return_value = mock_response
+
+        with pytest.raises(PepperAuthError, match="Authentication failed"):
+            api_with_auth.login()
+
+
+def test_get_deals_hot_mode_hottestWidget_null(api: PepperAPI) -> None:
+    """Test get_deals handles null hottestWidget gracefully."""
+    api.xsrf_token = "dummy_token"
+    graphql_response = {
+        "data": {
+            "hottestWidget": None,
+        }
+    }
+    with patch("urllib.request.OpenerDirector.open") as mock_open:
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(graphql_response).encode("utf-8")
+        mock_open.return_value.__enter__.return_value = mock_response
+
+        deals = api.get_deals(sort_mode="hot")
+        assert deals == []

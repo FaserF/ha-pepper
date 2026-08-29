@@ -78,6 +78,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         sort_mode=sort_mode,
         update_interval_min=scan_interval,
         limit=limit,
+        entry_id=entry.entry_id,
     )
 
     # Initial data refresh
@@ -87,11 +88,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    _async_register_services(hass)
+
+    # Register listener for options updates
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
+
+    return True
+
+
+def _async_register_services(hass: HomeAssistant) -> None:
+    """Register Pepper services if not already registered."""
+    if hass.services.has_service(DOMAIN, "search"):
+        return
+
     # Register the search service/action
     async def async_search_deals_service(call: ServiceCall) -> ServiceResponse:
         """Search deals service."""
         query = call.data["query"]
-        deals = await hass.async_add_executor_job(api.search_deals, query)
+        coordinators = list(hass.data.get(DOMAIN, {}).values())
+        if not coordinators:
+            return {"deals": []}
+        deals = await hass.async_add_executor_job(
+            coordinators[0].api.search_deals, query
+        )
         from typing import cast
 
         return cast(ServiceResponse, {"deals": deals})
@@ -111,7 +130,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register the refresh service/action
     async def async_refresh_service(call: ServiceCall) -> None:
         """Refresh data coordinator."""
-        await coordinator.async_request_refresh()
+        coordinators = list(hass.data.get(DOMAIN, {}).values())
+        for coordinator in coordinators:
+            await coordinator.async_request_refresh()
 
     hass.services.async_register(
         DOMAIN,
@@ -123,8 +144,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def async_set_search_query_service(call: ServiceCall) -> None:
         """Set dynamic search query."""
         query = call.data.get("query")
-        coordinator.dynamic_search_query = query if query else None
-        await coordinator.async_request_refresh()
+        coordinators = list(hass.data.get(DOMAIN, {}).values())
+        for coordinator in coordinators:
+            coordinator.dynamic_search_query = query if query else None
+            await coordinator.async_request_refresh()
 
     hass.services.async_register(
         DOMAIN,
@@ -137,16 +160,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ),
     )
 
-    # Register listener for options updates
-    entry.async_on_unload(entry.add_update_listener(async_update_listener))
-
-    return True
-
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
+        if not hass.data.get(DOMAIN):
+            hass.services.async_remove(DOMAIN, "search")
+            hass.services.async_remove(DOMAIN, "refresh")
+            hass.services.async_remove(DOMAIN, "set_search_query")
 
     return unload_ok
 

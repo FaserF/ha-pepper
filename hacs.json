@@ -2,5 +2,6 @@
   "name": "Pepper",
   "render_readme": true,
   "zip_release": true,
-  "filename": "pepper.zip"
+  "filename": "pepper.zip",
+  "homeassistant": "2024.12.0"
 }

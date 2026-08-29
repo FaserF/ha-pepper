@@ -9,15 +9,29 @@
           "sort_mode": "Deal-Sortierung",
           "scan_interval": "Abfrage-Intervall (Minuten)",
           "keywords": "Schlagwörter für Alarme (kommagetrennt)",
+          "groups": "Deal-Kategorien (kommagetrennt)",
           "temp_threshold": "Temperatur-Grenzwert für Alarme",
           "limit": "Maximal abzurufende Deals",
           "username": "Benutzername (Optional)",
-          "password": "Passwort (Optional)"
+          "password": "Passwort (Optional)",
+          "filter_min_temp": "Smart Filter: Mindest-Temperatur",
+          "filter_max_price": "Smart Filter: Maximaler Preis",
+          "filter_merchants": "Smart Filter: Händler (kommagetrennt)",
+          "filter_keywords": "Smart Filter: Schlagwörter (kommagetrennt)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Pepper erneut authentifizieren",
+        "description": "Bitte gib die aktualisierten Zugangsdaten für {platform} ein.",
+        "data": {
+          "username": "Benutzername",
+          "password": "Passwort"
         }
       }
     },
     "error": {
-      "cannot_connect": "Verbindung zur ausgewählten Pepper-Plattform fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut."
+      "cannot_connect": "Verbindung zur ausgewählten Pepper-Plattform fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.",
+      "invalid_auth": "Ungültiger Benutzername oder ungültiges Passwort."
     }
   },
   "options": {
@@ -29,10 +43,21 @@
           "sort_mode": "Deal-Sortierung",
           "scan_interval": "Abfrage-Intervall (Minuten)",
           "keywords": "Schlagwörter für Alarme (kommagetrennt)",
+          "groups": "Deal-Kategorien (kommagetrennt)",
           "temp_threshold": "Temperatur-Grenzwert für Alarme",
-          "limit": "Maximal abzurufende Deals"
+          "limit": "Maximal abzurufende Deals",
+          "username": "Benutzername (Optional)",
+          "password": "Passwort (Optional)",
+          "filter_min_temp": "Smart Filter: Mindest-Temperatur",
+          "filter_max_price": "Smart Filter: Maximaler Preis",
+          "filter_merchants": "Smart Filter: Händler (kommagetrennt)",
+          "filter_keywords": "Smart Filter: Schlagwörter (kommagetrennt)"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zur ausgewählten Pepper-Plattform fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.",
+      "invalid_auth": "Ungültiger Benutzername oder ungültiges Passwort."
     }
   },
   "services": {
@@ -49,6 +74,16 @@
     "refresh": {
       "name": "Aktualisieren",
       "description": "Lade sofort die neuesten Daten von der Pepper-Plattform herunter."
+    },
+    "set_search_query": {
+      "name": "Dynamischen Suchbegriff setzen",
+      "description": "Aktualisiert die Suchanfrage für den dynamischen Suchsensor (leer lassen zum Deaktivieren).",
+      "fields": {
+        "query": {
+          "name": "Suchbegriff",
+          "description": "Der Suchbegriff (leer lassen zum Löschen)."
+        }
+      }
     }
   }
 }

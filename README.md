@@ -22,7 +22,7 @@ A powerful, robust Home Assistant integration for **Pepper Deal Platforms** (MyD
 
 ## ✨ Features
 
-- 🚀 **Zero Scraping:** Connects directly to the Pepper internal GraphQL endpoints, avoiding fragile HTML DOM parsing.
+- 🚀 **GraphQL Feed & Search Scraping:** Connects directly to Pepper's internal GraphQL endpoints for the deal feed, avoiding fragile HTML DOM parsing. Search capabilities (`pepper.search` action and dynamic search sensor) scrape the HTML search results page via regex.
 - 🌍 **Multi-Platform Support:** The integration supports the shared GraphQL core Pepper platforms. Below is the compatibility list:
 
   | Platform | Domain | Status | Details / Reason |
@@ -40,63 +40,73 @@ A powerful, robust Home Assistant integration for **Pepper Deal Platforms** (MyD
   | **Pepper.nl** (Netherlands) | :x: | Platform shutdown (no valid DNS records). |
 
 - 🔐 **Optional Authentication:**
-  - Login optionally during setup to unlock personalized sensors.
+  - Login optionally during setup to unlock personalized account sensors.
+  - Automatic reauthentication flow if credentials change or expire.
   - Keeps session cookies persistent across polls.
 
 ---
 
 ## 📡 Sensors
 
-### Always Enabled
+### Shipped Sensors
 
-| Sensor | Entity ID | Description |
+| Sensor | Entity ID | State | Description |
+| :--- | :--- | :--- | :--- |
+| 🔥 **Top Deals** | `sensor.pepper_top_deals` | Title of #1 deal | Main deal feed sensor. Rich feed statistics and deal items are stored in attributes. |
+| 🎁 **Freebies** | `sensor.pepper_freebies` | Title of top freebie | Lists all active gratis deals in attributes. |
+| 📈 **Feed Deal Count** | `sensor.pepper_feed_deal_count` | Number of deals | Total deals currently in the retrieved feed. |
+| 🕒 **Freshest Deal** | `sensor.pepper_freshest_deal` | Title of newest deal | The most recently published deal in the feed. |
+| 🔔 **Keyword Alerts** | `sensor.pepper_keyword_alerts` | Matched deal count | Count of deals matching your configured keywords *(disabled by default)*. |
+| 🎫 **Vouchers** | `sensor.pepper_vouchers` | Active voucher count | Active vouchers with voucher codes in attributes *(disabled by default)*. |
+| 🔌 **API Status** | `sensor.pepper_api_status` | `connected` / `error` | Diagnostic connection status with latency and error attributes. |
+| 🎯 **Smart Filter Deals** | `sensor.pepper_smart_filter_deals` | Matched deal count | Deals matching custom temperature, price, merchant, and keyword filters *(disabled by default)*. |
+| 🔍 **Dynamic Search** | `sensor.pepper_dynamic_search` | Title of top result | Live deal results updated via `pepper.set_search_query` action *(disabled by default)*. |
+| 📁 **Group Top Deals** | `sensor.pepper_<group>_top_deals` | Title of top group deal | Dynamic per configured category/group *(created when groups are configured)*. |
+| 📊 **Group Deal Count** | `sensor.pepper_<group>_deal_count` | Group deal count | Total deals in the configured category/group *(created when groups are configured)*. |
+| 👤 **User Account** | `sensor.pepper_user_account` | Username | Consolidated account details and statistics *(requires login, created automatically)*. |
+
+### Top Deals Attributes (`sensor.pepper_top_deals`)
+
+Feed-wide statistics are consolidated directly into `sensor.pepper_top_deals` attributes:
+
+| Attribute | Type | Description |
 | :--- | :--- | :--- |
-| 🔥 **Top Deals** | `sensor.pepper_top_deals` | State = title of the #1 deal. Attributes = full list of deals with all fields. |
-| 🎁 **Freebies** | `sensor.pepper_freebies` | State = title of the top freebie. Attributes = list of free items. |
-| 📈 **Feed Deal Count** | `sensor.pepper_feed_deal_count` | Total deals currently in the retrieved feed. |
-| 🕒 **Freshest Deal** | `sensor.pepper_freshest_deal` | State = title of the most recently published deal. |
+| `deals` | list[dict] | Up to 10 slimmed deal objects from the feed. |
+| `deals_count` | int | Total number of deals in the feed. |
+| `average_temperature` | float | Average heat score across all deals in the feed. |
+| `average_price` | float | Average price of priced deals. |
+| `average_saving_percent` | float | Average discount percentage compared to next best price. |
+| `cheapest_deal` | dict | `{"title": str, "price": float}` of the lowest priced deal. |
+| `hottest_deal` | dict | `{"title": str, "temperature": float}` of the highest temperature deal. |
+| `hottest_rising_deal` | dict | `{"title": str, "temp_change": float}` of the fastest heating deal. |
+| `top_merchant` | string | Merchant with the highest number of deals in the feed. |
+| `top_submitter` | string | Username with the most posted deals in the feed. |
+| `top_group` | string | Most frequent category in the feed. |
+| `price_errors_count` | int | Count of active (non-expired) price error deals. |
+| `freebie_count` | int | Total freebie deals in the feed. |
+| `voucher_count` | int | Total voucher deals in the feed. |
+| `discussion_count` | int | Total discussion threads in the feed. |
+| `expired_deals_count` | int | Count of expired deals in the feed. |
+| `expired_deals_percentage` | float | Percentage of deals in the feed that are expired. |
+| `picked_deals_count` | int | Deals featured/picked by editors (`picked_at > 0`). |
+| `deal_type_distribution` | dict | Counts per thread type (`Deal`, `Voucher`, `Freebie`, `Discussion`). |
+| `sort_mode` | string | Configured sort mode (`hot` or `new`). |
 
-### Disabled by Default (enable as needed)
+### User Account Attributes (`sensor.pepper_user_account`)
 
-| Sensor | Entity ID | Description |
+When logged in, user profile attributes are consolidated on `sensor.pepper_user_account`:
+
+| Attribute | Type | Description |
 | :--- | :--- | :--- |
-| 🔔 **Keyword Alerts** | `sensor.pepper_keyword_alerts` | Count of deals matching your configured keywords. |
-| 🎫 **Vouchers** | `sensor.pepper_vouchers` | Count of active vouchers with `voucher_code` in attributes. |
-| 🆕 **New Deals (Last Hour)** | `sensor.pepper_new_deals_last_hour` | Count of deals published within the last 60 minutes. |
-| ⌛ **Expired Deals** | `sensor.pepper_expired_deals` | Count of expired deals currently in the feed. |
-| ⭐ **Picked Deals** | `sensor.pepper_picked_deals` | Count of deals that have been featured/picked by editors (`pickedAt > 0`). |
-| 🏪 **Top Merchant** | `sensor.pepper_top_merchant` | Merchant name with the most deals in the current feed. Attributes = full ranking. |
-| 🌡️ **Average Temperature** | `sensor.pepper_average_temperature` | Average temperature of the retrieved deals. Attrs: min, max, median, std dev. |
-| 🪙 **Cheapest Deal** | `sensor.pepper_cheapest_deal` | Price of the cheapest priced deal. |
-| 🌶️ **Hottest Deal Temp** | `sensor.pepper_hottest_deal_temperature` | Temperature of the single hottest deal. |
-| 📊 **Deal Distribution** | `sensor.pepper_deal_type_distribution` | Most common deal type (Deal/Voucher/Freebie/Discussion). Attrs: type counts. |
-| 🎫 **Deals with Voucher** | `sensor.pepper_deals_with_voucher_count` | Count of deals in the main feed having a voucher code. |
-| 🎁 **Freebie Count** | `sensor.pepper_freebie_count` | Integer count of freebies. |
-| 💬 **Most Commented Deal** | `sensor.pepper_most_commented_deal` | Title of the deal with the most comments. |
-| 🔗 **Most Shared Deal** | `sensor.pepper_most_shared_deal` | Title of the deal with the most shares. |
-| 💸 **Best Saving (Absolute)** | `sensor.pepper_best_saving_absolute` | Highest absolute saving (next_best_price - price). |
-| 🏷️ **Best Saving (Percent)** | `sensor.pepper_best_saving_percent` | Highest percentage saving. |
-| 📊 **Average Saving Percent** | `sensor.pepper_average_saving_percent` | Average saving percentage across all priced deals in the main feed. |
-| 🪙 **Average Price** | `sensor.pepper_average_price` | Average price of priced deals in the current feed. |
-| 💬 **Discussion Count** | `sensor.pepper_discussion_count` | Count of discussion threads in the feed. |
-| 🎫 **Voucher Count** | `sensor.pepper_voucher_count` | Count of voucher threads in the main feed. |
-| 📉 **Expired Deals Percentage** | `sensor.pepper_expired_deals_percentage` | Percentage of expired deals in the feed. |
-| 🧑‍💻 **Top Submitter** | `sensor.pepper_top_submitter` | Submitter name with the most deals in the current feed. |
-| 📁 **Top Group** | `sensor.pepper_top_group` | Most frequent category/group in the feed. |
-| 🌶️ **Hottest Deal Title** | `sensor.pepper_hottest_deal_title` | Title of the hottest deal in the feed. |
-| ⚠️ **Price Errors** | `sensor.pepper_price_errors` | Count of active (non-expired) price error deals in the feed. |
-
-
-### User Sensors *(requires login, disabled by default)*
-
-| Sensor | Entity ID | Description |
-| :--- | :--- | :--- |
-| 📝 **User Thread Count** | `sensor.pepper_user_thread_count` | Total number of deal threads the logged-in user has posted. |
-| 💬 **User Comment Count** | `sensor.pepper_user_comment_count` | Total number of comments the logged-in user has posted. |
-| 📅 **User Account Age (Days)** | `sensor.pepper_user_account_age_days` | Number of days since the user's account was created. |
-| 🏆 **User Badge Count** | `sensor.pepper_user_badge_count` | Number of badges earned by the user. |
-| ✉️ **User Email** | `sensor.pepper_user_email` | The email address associated with the logged-in account. |
-| 🖼️ **User Avatar** | `sensor.pepper_user_avatar` | The user's avatar URL. |
+| `user_id` | string | Pepper user ID. |
+| `email` | string | Account email address. |
+| `avatar_url` | string | URL of user avatar image. |
+| `thread_count` | int | Total deals posted by user. |
+| `comment_count` | int | Total comments posted by user. |
+| `badge_count` | int | Number of profile badges. |
+| `badges` | list | Badges awarded to user. |
+| `account_age_days` | int | Age of account in days. |
+| `created_at` | string | ISO timestamp of account creation. |
 
 ---
 
@@ -115,13 +125,13 @@ All binary sensors are **disabled by default**.
 | 🔔 **Keyword Match Available** | `binary_sensor.pepper_keyword_match_available` | Any active (non-expired) deal matches the configured keywords. |
 | 🌶️ **Super Hot Deal Available** | `binary_sensor.pepper_super_hot_deal_available` | Any deal temperature in the feed exceeds 500°. |
 | ⚠️ **Price Error Available** | `binary_sensor.pepper_price_error_available` | Any active (non-expired) price error deal is in the feed. |
-
+| 🎯 **Smart Filter Match** | `binary_sensor.pepper_smart_filter_match` | Any active deal matches all custom configured smart filter rules. |
 
 ---
 
-## 📋 Deal Attributes
+## 📋 Deal Object Attributes
 
-Every deal object in sensor attributes includes the following fields:
+Deal arrays in sensor and binary sensor attributes use a lightweight structure capped at 10 items to prevent state size bloat:
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
@@ -129,27 +139,22 @@ Every deal object in sensor attributes includes the following fields:
 | `title` | string | Deal title |
 | `url` | string | Link to the deal page |
 | `price` | float | Current deal price |
-| `next_best_price` | float | Historical best price (for price comparison) |
+| `next_best_price` | float | Historical best price (for comparison) |
 | `temperature` | float | Community heat/vote score |
 | `published_at` | int | Unix timestamp of publication |
-| `created_at` | int | Unix timestamp of creation |
 | `picked_at` | int | Unix timestamp when featured by editors (0 = not featured) |
-| `description` | string | Full deal description |
 | `voucher_code` | string | Coupon / voucher code (if applicable) |
 | `type` | string | `Deal`, `Voucher`, `Freebie`, or `Discussion` |
 | `status` | string | `Activated`, `Expired`, `Draft`, etc. |
 | `is_expired` | bool | `true` if the deal is expired |
-| `expirable` | bool | `true` if the deal has an expiry date |
 | `comment_count` | int | Number of comments |
 | `share_count` | int | Number of shares |
-| `merchant` | string | Merchant/store display name |
-| `merchant_id` | string | Internal merchant ID |
-| `merchant_page_url` | string | URL to the merchant's page on the platform |
-| `merchant_url_name` | string | Merchant URL slug |
-| `submitter` | string | Username of the deal submitter |
-| `submitter_id` | string | User ID of the deal submitter |
+| `merchant` | string | Merchant display name |
+| `merchant_page_url` | string | URL to merchant profile on platform |
+| `submitter` | string | Username of deal author |
 | `image_url` | string | Deal image URL (CDN resolved) |
-| `groups` | list[string] | List of categories/groups the deal belongs to |
+| `groups` | list[string] | Deal categories |
+| `temp_change` | float | Temperature change since last poll |
 
 ---
 
@@ -158,7 +163,7 @@ Every deal object in sensor attributes includes the following fields:
 The integration registers actions to programmatically interact:
 
 ### `pepper.search`
-Search for deals on the selected platform. This returns the list of matching deals.
+Search for deals on the selected platform using HTML search scraping.
 
 **Service Data:**
 - `query` (string, required): The keyword to search for (e.g. `rtx 5080`).
@@ -168,6 +173,12 @@ Search for deals on the selected platform. This returns the list of matching dea
 
 ### `pepper.refresh`
 Force the integration to immediately pull the latest data from the platform.
+
+### `pepper.set_search_query`
+Update the search query string for the dynamic search sensor (`sensor.pepper_dynamic_search`) to track live search results on your dashboard.
+
+**Service Data:**
+- `query` (string, optional): The query to run for the dynamic search sensor (e.g. `rtx 4080`). Leave blank to clear.
 
 ---
 
@@ -182,10 +193,12 @@ Adding the Pepper platform is done entirely in the UI.
    - **Sort Mode:** Sort deals by `hot` (votes/temperature) or `new`.
    - **Scan Interval:** Minutes to wait between updates (default: `30` minutes).
    - **Keywords:** (Optional) Comma-separated list of keywords to track.
+   - **Deal Groups:** (Optional) Comma-separated list of categories/groups to create dedicated sensors for.
    - **Temperature Threshold:** (Optional) Min heat to trigger the High Temp binary sensor (default: `500`).
-   - **Max Deals to Fetch:** (Optional) Limit the number of deals fetched per update (default: `30`).
+   - **Max Deals to Fetch:** (Optional) Limit the number of deals fetched per update (default: `10`).
    - **Username:** (Optional) Your Pepper account username/email.
    - **Password:** (Optional) Your Pepper account password.
+   - **Smart Filter Options:** (Optional) Set minimum temperature, maximum price, merchant filters, and keywords.
 
 ---
 
@@ -217,7 +230,7 @@ This integration is fully compatible with [HACS](https://hacs.xyz/).
 To prevent rate-limiting and session blocks by Cloudflare WAF or Pepper's server security, the integration implements a multi-layer anti-ban strategy:
 1. **User-Agent Rotation:** Mimics authentic user sessions by rotating actual modern browser User-Agents.
 2. **Accept Signatures:** Sends matching headers (`Sec-CH-UA`, `Sec-Fetch-Site`, etc.) matching the generated User-Agent signature.
-3. **Random Jitter Delay:** Every background coordinator poll is delayed by a random offset of `1.0` to `5.0` seconds to evade periodic profiling detection.
+3. **Random Jitter Delay:** Every background coordinator poll is delayed by a random offset of `2.0` to `6.0` seconds to evade periodic profiling detection.
 4. **XSRF Validation:** Extracts valid cookies and validation tokens dynamically from the home page.
 5. **Session Persistence:** Session cookies are retained across polls — the login is only performed once per session start, not on every update.
 

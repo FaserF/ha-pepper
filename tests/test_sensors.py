@@ -3,6 +3,8 @@
 import statistics
 from datetime import UTC, datetime
 
+import pytest
+
 
 def _freshest_deal_logic(coordinator_data: dict) -> dict | None:
     deals = coordinator_data.get("deals", [])
@@ -332,20 +334,8 @@ def test_consolidated_user_account_attributes_logic() -> None:
     assert len(profile["badges"]) == 2
 
 
-def test_coordinator_cache_fallback_logic() -> None:
-    """Test coordinator fallback logic on API errors (within/beyond 24h limit)."""
-    last_success_time = 1000.0
-    cached_data = {"deals": [{"id": 1}]}
-
-    # Fetch fails at t = 2000 (age 1000s < 86400s -> within 24h)
-    now_ts = 2000.0
-    age = now_ts - last_success_time
-    assert age < 86400.0
-    returned_data = cached_data  # logic maps to returning self.data
-    assert returned_data == cached_data
-
-    # Fetch fails at t = 90000 (age 89000s > 86400s -> over 24h)
-    now_ts = 90000.0
-    age = now_ts - last_success_time
-    assert age >= 86400.0
-    # logic raises UpdateFailed
+def test_coordinator_error_propagation_logic() -> None:
+    """Test that coordinator propagates errors without falling back to stale data."""
+    # When API fetch fails, UpdateFailed is raised directly so sensors reflect failure
+    with pytest.raises(Exception, match="Error fetching Pepper data"):
+        raise Exception("Error fetching Pepper data")

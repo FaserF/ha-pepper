@@ -1,5 +1,6 @@
 """Config flow for Pepper integration."""
 
+from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
@@ -30,7 +31,7 @@ from .const import (
     DOMAIN,
     PLATFORMS_MAP,
 )
-from .pepper_api import PepperAPI
+from .pepper_api import PepperAPI, PepperAuthError
 
 
 class PepperConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
@@ -45,13 +46,18 @@ class PepperConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignor
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            await self.async_set_unique_id(
+                f"{user_input[CONF_PLATFORM]}_{user_input[CONF_SORT_MODE]}"
+            )
+            self._abort_if_unique_id_configured()
+
             # Validate connection by doing a test fetch on the selected platform
             try:
                 # Validate credentials and establish session
                 api = PepperAPI(
                     platform=user_input[CONF_PLATFORM],
-                    username=user_input.get(CONF_USERNAME),
-                    password=user_input.get(CONF_PASSWORD),
+                    username=user_input.get(CONF_USERNAME) or None,
+                    password=user_input.get(CONF_PASSWORD) or None,
                 )
                 await self.hass.async_add_executor_job(api.fetch_session)
 
@@ -65,6 +71,8 @@ class PepperConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignor
                 )
                 title = f"{name} ({user_input[CONF_SORT_MODE].capitalize()})"
                 return self.async_create_entry(title=title, data=user_input)
+            except PepperAuthError:
+                errors["base"] = "invalid_auth"
             except Exception:
                 errors["base"] = "cannot_connect"
 
@@ -99,6 +107,61 @@ class PepperConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignor
         )
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Handle reauthentication."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle reauth confirmation."""
+        errors: dict[str, str] = {}
+        reauth_entry = self._get_reauth_entry()
+
+        if user_input is not None:
+            platform = reauth_entry.data.get(CONF_PLATFORM, DEFAULT_PLATFORM)
+            username = user_input.get(CONF_USERNAME, "")
+            password = user_input.get(CONF_PASSWORD, "")
+            api = PepperAPI(
+                platform=platform,
+                username=username if username else None,
+                password=password if password else None,
+            )
+            try:
+                await self.hass.async_add_executor_job(api.fetch_session)
+                new_data = {
+                    **reauth_entry.data,
+                    CONF_USERNAME: username,
+                    CONF_PASSWORD: password,
+                    "cookies": api.dump_session_cookies(),
+                    "xsrf_token": api.xsrf_token,
+                    "headers": api._headers,
+                }
+                return self.async_update_reload_and_abort(reauth_entry, data=new_data)
+            except PepperAuthError:
+                errors["base"] = "invalid_auth"
+            except Exception:
+                errors["base"] = "cannot_connect"
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_USERNAME,
+                        default=reauth_entry.data.get(CONF_USERNAME, ""),
+                    ): str,
+                    vol.Required(CONF_PASSWORD): str,
+                }
+            ),
+            description_placeholders={
+                "platform": reauth_entry.data.get(CONF_PLATFORM, DEFAULT_PLATFORM)
+            },
+            errors=errors,
+        )
 
     @staticmethod
     @callback
@@ -146,6 +209,8 @@ class PepperOptionsFlowHandler(config_entries.OptionsFlow):
 
                 # Save remaining options
                 return self.async_create_entry(title="", data=user_input)
+            except PepperAuthError:
+                errors["base"] = "invalid_auth"
             except Exception:
                 errors["base"] = "cannot_connect"
 

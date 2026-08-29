@@ -47,6 +47,10 @@ def get_random_headers() -> dict[str, str]:
     return headers
 
 
+class PepperAuthError(Exception):
+    """Exception raised when authentication fails."""
+
+
 class PepperAPI:
     """Client for Pepper GraphQL API."""
 
@@ -212,6 +216,8 @@ class PepperAPI:
                     _LOGGER.debug("Waiting 1.5s after login to let session settle")
                     time.sleep(1.5)
                 self._session_authenticated = True
+            except PepperAuthError:
+                raise
             except Exception as err:
                 _LOGGER.error("Failed to log in during session fetch: %s", err)
                 raise ConnectionError(f"Login failed: {err}") from err
@@ -334,7 +340,14 @@ class PepperAPI:
                 "password": self.password,
             }
         }
-        self._query(query, variables)
+        try:
+            data = self._query(query, variables)
+            if not data or not (data.get("loginUser") or {}).get("user"):
+                raise PepperAuthError(
+                    "Authentication failed: invalid username or password"
+                )
+        except ValueError as err:
+            raise PepperAuthError(f"Authentication failed: {err}") from err
 
     def get_user_profile(self) -> dict[str, Any]:
         """Fetch the logged-in user profile details.
@@ -367,66 +380,58 @@ class PepperAPI:
 
     def get_deals(
         self,
-        sort_mode: str = "hot",
+        sort_mode: str = "new",
         is_freebies: bool = False,
         is_voucher: bool = False,
-        limit: int = 30,
+        limit: int = 10,
         is_initial_fetch: bool = False,
     ) -> list[dict[str, Any]]:
-        """Fetch deals.
+        """Fetch deals from the Pepper GraphQL API.
 
-        If sort_mode is 'hot', fetches via hottestWidget query for actual
-        hottest deals of the day.  All confirmed Thread fields are requested,
-        including ``voucherCode`` (the correct name; old docs used
-        ``couponCode``), ``nextBestPrice``, ``type``, ``status``,
-        ``isExpired``, ``expirable``, ``pickedAt``, ``commentCount``,
-        ``shareCount``, ``shareableLink``, submitter ``user``, and full
-        ``merchant`` details.
+        Queries the ``threads`` endpoint or ``hottestWidget`` endpoint depending
+        on ``sort_mode``.
         """
-        filter_vars: dict[str, Any] = {}
+        variables: dict[str, Any] = {"limit": limit, "filter": {}}
         if is_voucher:
-            filter_vars["type"] = {"eq": "Voucher"}
+            variables["filter"]["type"] = {"eq": "Voucher"}
 
-        variables = {"filter": filter_vars, "limit": limit}
-
-        # Shared thread fields sub-selection
         thread_fields = """
-                  threadId
-                  title
-                  url
-                  price
-                  nextBestPrice
-                  temperature
-                  publishedAt
-                  createdAt
-                  pickedAt
-                  description
-                  voucherCode
-                  type
-                  status
-                  isExpired
-                  expirable
-                  commentCount
-                  shareCount
-                  mainImage {
-                    path
-                    name
-                  }
-                  merchant {
-                    merchantId
-                    merchantName
-                    merchantPageUrl
-                    merchantUrlName
-                  }
-                  user {
-                    userId
-                    username
-                  }
-                  groups {
-                    groupsPath {
-                      pageUrl
-                    }
-                  }
+          threadId
+          title
+          url
+          price
+          nextBestPrice
+          temperature
+          publishedAt
+          createdAt
+          pickedAt
+          description
+          voucherCode
+          type
+          status
+          isExpired
+          expirable
+          commentCount
+          shareCount
+          mainImage {
+            path
+            name
+          }
+          merchant {
+            merchantId
+            merchantName
+            merchantPageUrl
+            merchantUrlName
+          }
+          user {
+            userId
+            username
+          }
+          groups {
+            groupsPath {
+              pageUrl
+            }
+          }
         """
 
         if sort_mode == "hot":
@@ -440,7 +445,7 @@ class PepperAPI:
             }}
             """
             data = self._query(query, variables, is_initial_fetch=is_initial_fetch)
-            threads = data.get("hottestWidget", {}).get("threads", []) or []
+            threads = (data.get("hottestWidget") or {}).get("threads") or []
         else:
             query = f"""
             query getThreads($filter: ThreadFilter!, $limit: Int) {{

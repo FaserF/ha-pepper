@@ -23,6 +23,7 @@ from .const import (
 )
 from .coordinator import PepperDataUpdateCoordinator
 from .entity import PepperEntity
+from .sensors.deals import _slim_deals
 
 
 async def async_setup_entry(
@@ -103,7 +104,7 @@ class PepperHighTempAlertSensor(PepperEntity, BinarySensorEntity):
         return {
             "temp_threshold": self._get_threshold(),
             "alert_deals_count": len(alerts),
-            "deals": alerts,
+            "deals": _slim_deals(alerts),
         }
 
 
@@ -168,7 +169,7 @@ class PepperExpiredKeywordDealSensor(PepperEntity, BinarySensorEntity):
         return {
             "keywords": self._get_keywords(),
             "expired_keyword_deals_count": len(expired),
-            "deals": expired,
+            "deals": _slim_deals(expired),
         }
 
 
@@ -393,7 +394,7 @@ class PepperPriceErrorAvailableSensor(PepperEntity, BinarySensorEntity):
         errors = self._get_price_errors()
         return {
             "price_errors_count": len(errors),
-            "deals": errors,
+            "deals": _slim_deals(errors),
         }
 
 
@@ -479,5 +480,5 @@ class PepperSmartFilterMatchSensor(PepperEntity, BinarySensorEntity):
         matching = self._get_matching_deals()
         return {
             "matches_count": len(matching),
-            "deals": matching,
+            "deals": _slim_deals(matching),
         }
