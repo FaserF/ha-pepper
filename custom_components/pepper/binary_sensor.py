@@ -48,7 +48,7 @@ async def async_setup_entry(
         PepperSmartFilterMatchSensor(coordinator, entry),
     ]
 
-    async_add_entities(entities, True)
+    async_add_entities(entities)
 
 
 class PepperHighTempAlertSensor(PepperEntity, BinarySensorEntity):
