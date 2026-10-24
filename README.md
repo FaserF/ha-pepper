@@ -312,6 +312,16 @@ For in-depth details on the private GraphQL endpoints, query schemas, variables,
 
 ---
 
+
+## 🔌 Recommended Hardware & Ecosystem Links
+
+| Device / Service | Integration Use Case | Link |
+| :--- | :--- | :--- |
+| **Shelly Pro 3EM & Smart-Energy Relais** | 3-Phasen Hausverbrauch & lokale MQTT/CoIoT-Integration | [Offizielle Geräte-Seite →](https://fabiseitz.de/go/ha-shelly) |
+| **Tasmota Smart Plugs & Sensoren** | 100 % lokale Strommessung & OTA-Firmware-Updates | [Offizielle Geräte-Seite →](https://fabiseitz.de/go/ha-tasmota) |
+
+---
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
