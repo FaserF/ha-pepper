@@ -1,9 +1,9 @@
-# Pepper Deal Platforms (for Home Assistant)
+﻿# Pepper Deal Platforms (for Home Assistant)
 
 [![GitHub Release](https://img.shields.io/github/release/FaserF/ha-pepper.svg?style=flat-square)](https://github.com/FaserF/ha-pepper/releases)
 [![Downloads (Current release)](https://img.shields.io/github/downloads/FaserF/ha-pepper/latest/pepper.zip?label=Downloads%20(Current%20release)&style=flat-square)](https://github.com/FaserF/ha-pepper/releases)
 [![License](https://img.shields.io/github/license/FaserF/ha-pepper.svg?style=flat-square)](LICENSE)
-[![hacs](https://img.shields.io/badge/HACS-custom-orange.svg?style=flat-square)](https://hacs.xyz)
+[![Home Assistant Marketplace](https://img.shields.io/badge/Home_Assistant-Marketplace-41BDF5.svg?style=flat-square&logo=homeassistant&logoColor=white)](https://www.home-assistant.io)
 [![Add to Home Assistant](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=pepper)
 [![CI Orchestrator](https://github.com/FaserF/ha-pepper/actions/workflows/ci-orchestrator.yml/badge.svg)](https://github.com/FaserF/ha-pepper/actions/workflows/ci-orchestrator.yml)
 
@@ -204,13 +204,13 @@ Adding the Pepper platform is done entirely in the UI.
 
 ## 📦 Installation
 
-### HACS (Recommended)
+### Home Assistant Marketplace (Recommended)
 
-This integration is fully compatible with [HACS](https://hacs.xyz/).
+This integration is available via the official Home Assistant **Marketplace** (HA 2026.11+) or as a custom repository.
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=FaserF&repository=ha-pepper&category=integration)
+[![Open your Home Assistant instance and open the repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=FaserF&repository=ha-pepper&category=integration)
 
-1. Open HACS in Home Assistant.
+1. Open Marketplace in Home Assistant.
 2. Click **Integrations** and select the three dots in the top-right corner.
 3. Select **Custom repositories**.
 4. Add the URL of the repository: `https://github.com/FaserF/ha-pepper` and select **Integration** as category.
@@ -317,8 +317,8 @@ For in-depth details on the private GraphQL endpoints, query schemas, variables,
 
 | Device / Service | Integration Use Case | Link |
 | :--- | :--- | :--- |
-| **Shelly Pro 3EM & Smart-Energy Relais** | 3-Phasen Hausverbrauch & lokale MQTT/CoIoT-Integration | [Offizielle Geräte-Seite →](https://fabiseitz.de/go/ha-shelly) |
-| **Tasmota Smart Plugs & Sensoren** | 100 % lokale Strommessung & OTA-Firmware-Updates | [Offizielle Geräte-Seite →](https://fabiseitz.de/go/ha-tasmota) |
+| **Shelly Pro 3EM & Smart Energy Relays** | 3-phase whole-home energy monitoring & local MQTT/CoIoT integration | [Official Device Page →](https://fabiseitz.de/go/ha-shelly) |
+| **Tasmota Smart Plugs & Sensors** | 100% local power measurement & OTA firmware updates | [Official Device Page →](https://fabiseitz.de/go/ha-tasmota) |
 
 ---
 

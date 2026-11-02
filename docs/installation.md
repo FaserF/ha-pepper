@@ -1,8 +1,8 @@
-# Installation
+﻿# Installation
 
 ## HACS (Recommended)
 
-1. Open HACS in Home Assistant.
+1. Open Marketplace in Home Assistant.
 2. Click on **Integrations** and select the three dots in the top-right corner.
 3. Select **Custom repositories**.
 4. Add the URL of the repository: `https://github.com/FaserF/ha-mydealz` and select **Integration** as category.
