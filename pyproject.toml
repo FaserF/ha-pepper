@@ -37,6 +37,9 @@ disable_error_code = ["misc", "call-arg", "import-untyped"]
 
 
 [tool.pytest.ini_options]
+pythonpath = [
+    ".",
+]
 testpaths = [
     "tests",
 ]
